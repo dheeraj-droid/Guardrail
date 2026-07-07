@@ -68,7 +68,10 @@ export async function processPullRequest(deps: PipelineDeps, input: PipelineInpu
         prNumber: input.prNumber,
         body: formatPrComment({ changes, scan, frontendRepoFullName, openapiFilePath }) })
 11. concludeCheckRun(octokit, { ..., checkRunId, conclusion: verdict.conclusion,
-        title: verdict.title, summary: verdict.summary })
+        title: verdict.title, summary: truncateForChecks(verdict.summary) })
+    // Law 15: the pipeline is the single place that applies F's rich, newline-aware
+    // truncateForChecks. checks.ts keeps only a defensive hard slice. Import
+    // truncateForChecks from '@/lib/report/formatComment'.
 CATCH (anything from 4–11):
     log the error with prefix `[guardrail]`; if checkRunId exists →
     concludeCheckRun(... neutral, title `Guardrail internal error`,

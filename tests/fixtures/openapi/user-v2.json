@@ -1,0 +1,62 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "User API",
+    "version": "2.0.0"
+  },
+  "paths": {
+    "/users": {
+      "post": {
+        "summary": "Create a user",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nickname": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "User": {
+        "type": "object",
+        "properties": {
+          "age": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "middleName": {
+            "type": "string"
+          },
+          "address": {
+            "type": "object",
+            "properties": {}
+          }
+        }
+      }
+    }
+  }
+}

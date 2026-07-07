@@ -78,11 +78,12 @@ export async function concludeCheckRun(
 - create: `POST /repos/{owner}/{repo}/check-runs` with `{ name: CHECK_NAME, head_sha,
   status: 'in_progress', started_at: new Date().toISOString() }`.
 - conclude: `PATCH /repos/{owner}/{repo}/check-runs/{check_run_id}` with
-  `{ status: 'completed', completed_at: ..., conclusion, output: { title, summary:
-  truncateForChecks(summary) } }`. Import `truncateForChecks` from `@/lib/report/formatComment`
-  (Track F owns it; its signature is frozen in that spec — safe cross-track import, it is
-  Wave-1-internal but only used at runtime, and the wave gate compiles everything together.
-  If you finish before Track F, declare the import anyway; the GATE, not you, verifies compile).
+  `{ status: 'completed', completed_at: ..., conclusion, output: { title, summary } }`.
+  DECOUPLING RULE (keeps this track independent of Track F): do NOT import from
+  `@/lib/report`. Apply a defensive inline cap so the transport can never 422 —
+  `const safe = summary.length > 65535 ? summary.slice(0, 65535) : summary;` and send
+  `safe`. The rich, newline-aware `truncateForChecks` (Track F) is applied UPSTREAM by the
+  pipeline (Track H) before it ever reaches here; this slice is belt-and-suspenders (Law 15).
 
 ## File 4 — comments.ts
 ```ts
