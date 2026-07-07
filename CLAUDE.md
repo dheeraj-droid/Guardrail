@@ -17,3 +17,4 @@ Update this file once the project takes shape. At minimum, document:
 
 - The project is named "Guardrail" (GitHub remote: dheeraj-droid/Guardrail). The local directory is still spelled "GaurdRail" — use "Guardrail" in code, docs, and configuration, but don't assume the folder path matches.
 - `.env` files are gitignored except `.env.example`; put secret placeholders there.
+- The `gh` CLI is installed but not on PATH in this environment. Invoke it via its full path: `C:\Program Files\GitHub CLI\gh.exe` (e.g. `& "C:\Program Files\GitHub CLI\gh.exe" pr create ...` in PowerShell).
