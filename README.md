@@ -1,4 +1,4 @@
-# GaurdRail
+# Guardrail
 
 > _Project description goes here._
 
