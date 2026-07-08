@@ -113,7 +113,9 @@ Copy `.env.example` to `.env` and fill in:
 
 ## Deployment
 
-Guardrail needs three things wired up before it can evaluate a real PR:
+**Full step-by-step runbook: [docs/DEPLOY.md](docs/DEPLOY.md)** (GitHub App setup, Supabase
+seeding, Vercel deploy, end-to-end test, and a debugging table). In short, Guardrail needs
+three things wired up before it can evaluate a real PR:
 
 1. **A GitHub App** with Checks (read/write), Contents (read), and Pull requests
    (read/write) permissions, subscribed to `pull_request` events, its webhook pointed at
