@@ -85,11 +85,26 @@ Set **Environment Variables** (Project → Settings → Environment Variables) �
 | `SCAN_CONCURRENCY` | `8` (optional; default 8) |
 | `MAX_SCAN_FILES` | `2000` (optional; default 2000) |
 
-> **Private key formatting.** `env.ts` un-escapes `\n`, so the most portable form is the
-> **whole key on one line with literal `\n`** between the lines:
-> `-----BEGIN RSA PRIVATE KEY-----\nMIIE...\n...\n-----END RSA PRIVATE KEY-----\n`
-> Pasting the real multi-line PEM also works (the un-escape is a no-op then). If auth fails
-> with a key error, this is almost always the culprit.
+> **Private key format — the #1 gotcha (two parts).**
+>
+> **1. It must be PKCS#8.** GitHub downloads the key in **PKCS#1**
+> (`-----BEGIN RSA PRIVATE KEY-----`), but octokit v4 signs the App JWT with Web Crypto,
+> which only accepts **PKCS#8** (`-----BEGIN PRIVATE KEY-----`). A PKCS#1 key fails at
+> runtime with `[guardrail] failed to start check run: Invalid keyData`
+> (`DataError: Invalid keyData`) — and, per fail-open, produces **no check run at all**.
+> Convert it once:
+> ```bash
+> openssl pkcs8 -topk8 -inform PEM -outform PEM -nocrypt -in app.pem -out app.pkcs8.pem
+> ```
+> The result begins `-----BEGIN PRIVATE KEY-----` (no "RSA").
+>
+> **2. Escape the newlines.** `env.ts` un-escapes `\n`, so store the PKCS#8 key on one line
+> with literal `\n` between lines:
+> ```bash
+> awk 'NF {printf "%s\\n", $0}' app.pkcs8.pem   # copy this as GITHUB_APP_PRIVATE_KEY
+> ```
+> (Pasting the real multi-line PEM also works — the un-escape is then a no-op.) After
+> changing the env var, **redeploy** so it takes effect.
 
 Deploy. Copy the production URL (e.g. `https://guardrail-you.vercel.app`).
 
@@ -153,7 +168,7 @@ You need a spec in the backend and a matching usage in the frontend.
 | Check concludes **neutral** "OpenAPI spec not found" | `openapi_file_path` wrong, or spec not on the base ref |
 | Check concludes **neutral** "Frontend repository unreachable" | App not installed on the frontend repo |
 | Check stuck **in_progress** | the `after()` scan errored or timed out — see host logs; consider `maxDuration` |
-| Private-key / auth errors in logs | `GITHUB_APP_PRIVATE_KEY` formatting (see Step 3 note) |
+| Log: `failed to start check run: Invalid keyData` (+ no check run) | `GITHUB_APP_PRIVATE_KEY` is PKCS#1 — convert to PKCS#8, or fix `\n` escaping (Step 3 note) |
 
 **Logs:** the pipeline logs every conclusion and error with a `[guardrail]` prefix — on
 Vercel, Project → **Logs** (or `vercel logs <deployment>`). **Iterate fast:** GitHub App →
