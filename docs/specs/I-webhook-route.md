@@ -1,8 +1,19 @@
 # Spec I — Gateway Webhook Receiver
 
 **Wave:** 2 | **Agent:** module-builder | **Depends on:** A (verifySignature), H (pipeline), W0 (env)
-**Files produced:** `src/app/api/webhook/github/route.ts`, `tests/route/webhook.test.ts`
-**Gate note (Law 12):** run only your own test file.
+**Files produced:** `src/app/api/webhook/github/route.ts`,
+`src/app/api/webhook/github/handler.ts`, `tests/route/webhook.test.ts`
+**Gate note (Law 12):** run only your own test file. ALSO run `npm run build` — a Next.js
+route file's exports are validated by `next build` (not by `tsc --noEmit`); see the split
+rule below.
+
+## Route-file export rule (discovered in deployment)
+A Next.js App Router `route.ts` may export ONLY HTTP method handlers (`GET`/`POST`/…) and
+route-segment config (`runtime`, `dynamic`, `maxDuration`, …). Any other export makes
+`next build` fail its generated route-type check — even though `tsc --noEmit` passes. So
+the `makePostHandler` testing seam lives in a sibling `handler.ts`; `route.ts` imports it
+and exports only `runtime`, `dynamic`, and `POST`. Tests import `makePostHandler` from
+`@/app/api/webhook/github/handler`.
 
 ## Purpose
 SRD Module 1: `/api/webhook/github`. Verify HMAC (constant time), extract the four fields,

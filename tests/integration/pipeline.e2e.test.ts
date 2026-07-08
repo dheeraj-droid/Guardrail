@@ -9,7 +9,7 @@ import { createHmac } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { makePostHandler } from '@/app/api/webhook/github/route';
+import { makePostHandler } from '@/app/api/webhook/github/handler';
 import { COMMENT_MARKER } from '@/lib/github/comments';
 import type { ProjectLink } from '@/types/db';
 import type { PullRequestWebhookPayload } from '@/types/github';

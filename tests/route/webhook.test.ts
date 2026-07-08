@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createHmac } from 'node:crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Octokit } from 'octokit';
-import { makePostHandler } from '@/app/api/webhook/github/route';
+import { makePostHandler } from '@/app/api/webhook/github/handler';
 import type { PipelineDeps } from '@/lib/pipeline/processPullRequest';
 import type { PipelineInput, PullRequestWebhookPayload } from '@/types/github';
 import type { Env } from '@/config/env';
