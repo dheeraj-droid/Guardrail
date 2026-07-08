@@ -23,3 +23,11 @@ export async function getInstallationClient(
   });
   return app.getInstallationOctokit(installationId);
 }
+
+/**
+ * Octokit acting AS THE SIGNED-IN USER (Spec K, dashboard only — never the pipeline).
+ * `client.ts` remains the ONLY Octokit construction site in the codebase (Law 3).
+ */
+export function getUserClient(token: string): Octokit {
+  return new Octokit({ auth: token });
+}
