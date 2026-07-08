@@ -79,6 +79,14 @@ supabase/migrations/  SQL DDL
     GitHub output.
 15. **Checks output caps.** `output.summary` max 65,535 chars — always pass report text
     through `truncateForChecks()` before the API call.
+16. **Branch per change.** NEVER commit directly to `main`. Every change — however small —
+    happens on its own branch named `<type>/<short-kebab-description>`, where `<type>` is a
+    Conventional-Commits prefix: `feat` (new capability), `fix` (bug fix; use this, not
+    `bug`), `docs`, `refactor`, `test`, `chore` (tooling/process), or `perf`. Workflow,
+    every time: branch off `main` → edit → commit (message prefixed with the same
+    `<type>:`) → merge back into `main` with `--no-ff` → delete the branch → push `main`.
+    One branch per logical edit — never batch unrelated changes onto one branch, and never
+    leave `main` with uncommitted work before branching.
 
 ## Approved dependencies
 
