@@ -210,6 +210,9 @@ export interface PipelineInput {
 ## 7. Out of scope for v1 (do NOT build)
 
 - OAuth onboarding UI / dashboard (project_links rows are inserted manually via SQL).
+  → **Superseded in Wave 4:** the dashboard is now specified in
+  `docs/specs/K-onboarding-dashboard.md` (public GitHub App: sign in with GitHub, pick
+  repos from your installations, manage links in a UI). The rest of §7 still holds.
 - `$ref` resolution across files or URLs (local `#/components/schemas/*` only).
 - Renamed-field detection (a rename = DELETED + unrelated addition).
 - ElementAccessExpression (`user["phoneNumber"]`) scanning — documented extension point.
