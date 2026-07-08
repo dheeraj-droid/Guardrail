@@ -158,6 +158,51 @@ You need a spec in the backend and a matching usage in the frontend.
 
 ---
 
+## Step 6 — enable the public dashboard
+
+Optional. The webhook pipeline (Steps 1-5) works without any of this — it's only needed if
+you want a web UI for signing in with GitHub and managing `project_links` rows instead of
+inserting them by hand in Supabase.
+
+1. **Make the GitHub App public.** App settings → scroll to the visibility section → set
+   it to **Public** (anyone can install it; only users you authorize can still write link
+   rows — see `authorizeLink` in `src/lib/auth/authorize.ts`).
+2. **Set the callback URL.** App settings → **Identifying and authorizing users** →
+   **Callback URL** → `<APP_BASE_URL>/api/auth/callback` (e.g.
+   `https://guardrail-xyz.vercel.app/api/auth/callback`). Also enable **Request user
+   authorization (OAuth) during installation** if you want new installs to prompt sign-in
+   immediately.
+3. **Generate a client secret.** Same settings page → **Generate a new client secret** →
+   copy it immediately (shown once) → this is `GITHUB_APP_CLIENT_SECRET`. The **Client ID**
+   on the same page is `GITHUB_APP_CLIENT_ID`.
+4. **Note the App slug.** The URL of the App's public page is
+   `https://github.com/apps/<slug>` — that `<slug>` is `GITHUB_APP_SLUG` (used to build the
+   "Install the GitHub App" link on the landing page).
+5. **Run migration 0002.** SQL Editor → New query → paste
+   [`supabase/migrations/0002_link_ownership.sql`](../supabase/migrations/0002_link_ownership.sql)
+   → run it. It only adds nullable columns (`created_by_github_id`, `created_by_login`,
+   `updated_at`) — existing rows and the pipeline's frozen `ProjectLink` type are
+   unaffected.
+6. **Set the five new env vars** (Vercel → Project → Settings → Environment Variables),
+   then **redeploy**:
+
+   | Variable | Value |
+   |---|---|
+   | `GITHUB_APP_CLIENT_ID` | from step 3 |
+   | `GITHUB_APP_CLIENT_SECRET` | from step 3 |
+   | `GITHUB_APP_SLUG` | from step 4 |
+   | `GUARDRAIL_SESSION_SECRET` | a random string >= 32 chars, e.g. `openssl rand -hex 32` |
+   | `APP_BASE_URL` | your deployment URL, no trailing slash |
+
+Visit `APP_BASE_URL` — you should see the landing page with "Install the GitHub App" and
+"Sign in with GitHub" buttons. Sign in, then link a backend/frontend repo pair from the
+`/dashboard` UI (only repos where the App is installed AND you have admin/maintain access
+are selectable as a *backend*; any accessible repo can be a *frontend*). The GitHub user
+token never reaches the browser — it lives only in an encrypted, HttpOnly session cookie
+server-side (`src/lib/auth/session.ts`).
+
+---
+
 ## Debugging
 
 | Symptom | Likely cause / check |

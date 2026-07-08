@@ -5,8 +5,9 @@
 > AST-scans the linked frontend repo for live usage, and blocks the merge via the GitHub
 > Checks API — with exact file/line locations — when the change would break the UI.
 
-**Status:** core pipeline complete and fully tested (127 tests green). Not yet wired to a
-live GitHub App / Supabase project — see [Deployment](#deployment).
+**Status:** core pipeline complete and fully tested (160 tests green), plus an optional
+public onboarding [dashboard](#dashboard). Not yet wired to a live GitHub App / Supabase
+project — see [Deployment](#deployment).
 
 ## Why
 
@@ -73,18 +74,22 @@ Next.js 15 (App Router) · React 19 · TypeScript 5.7 · Octokit 4 · Supabase J
 ```
 src/
   types/        Frozen shared contracts (contract.ts, github.ts, db.ts)
-  config/       env.ts — the only place that reads process.env
+  config/       env.ts — process.env access (webhook `Env` + dashboard `DashboardEnv`)
   lib/
     crypto/     verifySignature.ts        — HMAC-SHA256 webhook validation
     diff/       parseSpec, flattenSchema, diffSchemas — pure contract diffing
     scan/       concurrency, astScanner (pure) + scanRepo (IO orchestration)
-    db/         supabase, projectLinks    — project_links lookups
-    github/     client, contents, checks, comments — Octokit adapters
+    db/         supabase, projectLinks, linkAdmin — project_links access
+    github/     client, contents, checks, comments, userRepos — Octokit adapters
     report/     verdict, formatComment    — verdict matrix + PR markdown
     pipeline/   processPullRequest.ts     — the only module that glues it all
-  app/api/webhook/github/route.ts         — verify → 202 → after()
-supabase/migrations/                      — project_links DDL
-tests/                                    — mirrors src/ (127 tests)
+    auth/       session, oauth, authorize — dashboard sign-in + link authorization
+  app/
+    api/webhook/github/route.ts           — verify → 202 → after()
+    api/auth/, api/dashboard/, api/links/ — dashboard sign-in + link CRUD routes
+    page.tsx, dashboard/                  — landing page + link-manager UI
+supabase/migrations/                      — project_links + dashboard-ownership DDL
+tests/                                    — mirrors src/
 docs/                                     — architecture plan & per-module specs
 ```
 
@@ -93,7 +98,7 @@ docs/                                     — architecture plan & per-module spe
 ```bash
 npm install
 npm run typecheck   # tsc --noEmit
-npm test            # vitest run — 127 tests
+npm test            # vitest run — 160 tests
 npm run dev         # next dev (needs env vars configured, below)
 ```
 
@@ -110,6 +115,12 @@ Copy `.env.example` to `.env` and fill in:
 | `SUPABASE_SERVICE_ROLE_KEY` | Service-role key for `project_links` lookups |
 | `SCAN_CONCURRENCY` | Max concurrent blob fetches (default 8) |
 | `MAX_SCAN_FILES` | Cap on frontend files scanned per PR (default 2000) |
+
+The webhook pipeline above needs only those seven. Five more variables are read
+separately (`src/config/env.ts#loadDashboardEnv`) and are only needed if you enable the
+[public dashboard](#dashboard): `GITHUB_APP_CLIENT_ID`, `GITHUB_APP_CLIENT_SECRET`,
+`GITHUB_APP_SLUG`, `GUARDRAIL_SESSION_SECRET`, `APP_BASE_URL` — see
+[docs/DEPLOY.md](docs/DEPLOY.md) Step 6.
 
 ## Deployment
 
@@ -128,6 +139,30 @@ three things wired up before it can evaluate a real PR:
    ```
    (Monorepo: set `frontend_repo_id` equal to `backend_repo_id`.)
 3. **Env vars** from the table above, set in your host (e.g. Vercel).
+
+## Dashboard
+
+Guardrail also ships a small public onboarding dashboard so anyone can use it without SQL
+or numeric repo IDs: install the GitHub App → sign in with GitHub → pick a backend and
+frontend repo from your own installations → Guardrail creates/edits/deletes the
+`project_links` row for you. It's entirely optional — the webhook pipeline works with or
+without it, and a deployment that never sets the dashboard env vars just shows a
+"not configured" note on the landing page instead of failing.
+
+Security model, briefly (full detail in [docs/specs/K-onboarding-dashboard.md](docs/specs/K-onboarding-dashboard.md)):
+
+- The signed-in user's GitHub token lives only in an AES-256-GCM-encrypted, HttpOnly,
+  server-side session cookie (`src/lib/auth/session.ts`) — it is never sent to the
+  browser in any other form and never logged.
+- Every mutation (`POST`/`DELETE /api/links`) **re-fetches the caller's accessible repos
+  from GitHub with their own session token** and re-runs the authorization law
+  (`src/lib/auth/authorize.ts`) server-side — a client-supplied repo id is never trusted
+  on its own. A repo is only linkable as a *backend* if the user has admin or maintain
+  permission on it **and** the GitHub App is installed there.
+- Mutating requests must carry a custom header (`x-guardrail-request: dashboard`), a
+  same-site CSRF defense that cross-site requests cannot forge.
+
+See [docs/DEPLOY.md](docs/DEPLOY.md) Step 6 to turn it on.
 
 ## Documentation
 
