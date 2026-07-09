@@ -82,6 +82,7 @@ export function blobRoute(contents: Record<string, string>): RouteHandler {
 /** Find a call to `route`, asserting it happened, and return its params as `any`
  * (mirrors tests/pipeline/processPullRequest.test.ts — casting here only reduces
  * test-file noise when reaching into nested `output.title` / `output.summary`). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function findCall(request: ReturnType<typeof vi.fn>, route: string): any {
   const call = request.mock.calls.find(([r]) => r === route);
   expect(call, `expected a call to ${route}`).toBeDefined();
