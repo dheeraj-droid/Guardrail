@@ -215,6 +215,5 @@ export interface PipelineInput {
   repos from your installations, manage links in a UI). The rest of §7 still holds.
 - `$ref` resolution across files or URLs (local `#/components/schemas/*` only).
 - Renamed-field detection (a rename = DELETED + unrelated addition).
-- ElementAccessExpression (`user["phoneNumber"]`) scanning — documented extension point.
 - Retries/queues beyond `after()` (no QStash/SQS in v1).
 - Multi-frontend fan-out (one frontend repo per backend repo).

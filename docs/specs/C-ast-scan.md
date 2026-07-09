@@ -84,7 +84,17 @@ SRD: catch `response.data.phoneNumber`.
 - Optional chaining `user?.phoneNumber` is still a PropertyAccessExpression → caught
   automatically; add a test proving it.
 
-**Checkpoint 2 — Object Destructuring (`ts.isBindingElement(node)`):**
+**Checkpoint 2 — Bracket Property Access with a string-literal key
+(`ts.isElementAccessExpression(node)`):** added post-v1 to close the false-negative gap
+where `user["phoneNumber"]` shipped undetected.
+SRD: catch `user["phoneNumber"]` — same read as checkpoint 1, different syntax.
+- `const arg = node.argumentExpression;` — if `ts.isStringLiteral(arg)` and
+  `targetFields.has(arg.text)` → record a match with `kind: 'property-access'` (reused,
+  not a new kind — Law 1 freezes `UsageMatch.kind`), positioned at `arg.getStart(sf)`.
+- A non-literal key (`user[key]`, `user[0]`) is dynamic and not statically trackable →
+  skip.
+
+**Checkpoint 3 — Object Destructuring (`ts.isBindingElement(node)`):**
 SRD: catch `const { phoneNumber } = userData`. THE ALIAS TRAP (SRD §3, Law 6): for
 `const { phoneNumber: phone } = user` you MUST evaluate the source property key
 (`phoneNumber`), never the alias (`phone`).
@@ -143,12 +153,15 @@ Author one fixture string per case inside the test file:
 12. Nested destructure `const { user: { phoneNumber } } = resp;` → 1 match for phoneNumber.
 13. Syntactically broken file (`const { = ;`) → returns without throwing.
 14. Writing an object literal `{ phoneNumber: value }` (ShorthandPropertyAssignment /
-    PropertyAssignment) is NOT one of the two SRD checkpoints → 0 matches. Document this
+    PropertyAssignment) is NOT one of the SRD checkpoints → 0 matches. Document this
     with a comment in the test.
+15. Bracket access with a string-literal key `user["phoneNumber"]` → 1 match,
+    `kind: 'property-access'`.
+16. Bracket access with a dynamic (non-literal) key `user[phoneNumber]` → 0 matches, even
+    when `phoneNumber` is itself a target field name.
+17. Multi-hit line `a["age"] + b["age"]` → 2 matches, different columns.
 
 ## Forbidden
 - Regex/string-includes matching of identifiers (Law 7).
 - `ts.createProgram` / type checker / language service (text-level parse only — no
   type resolution is needed and it would explode memory in serverless).
-- Matching `ElementAccessExpression` (`u["phoneNumber"]`) — out of scope v1 (PLAN §7);
-  leave a `// extension point:` comment where it would go.

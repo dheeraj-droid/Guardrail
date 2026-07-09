@@ -87,3 +87,21 @@ record of what happened, not a plan.
 **Still open:** `npm run lint` is not wired into `.github/workflows/ci.yml`. 4 lint
 violations remain (2 real, 2 intentionally-documented). Decision needed: fix the 2 real
 ones and gate CI on lint, or leave lint local-only for now.
+
+## 2026-07-10
+
+**Bracket-notation field scanning** (`feat/element-access-scanning`, merged to `main`)
+- Closed a documented v1 false-negative gap (`PLAN.md §7`, `docs/specs/C-ast-scan.md`
+  "Forbidden"): `astScanner.ts` previously only matched dot-access
+  (`PropertyAccessExpression`) and destructuring (`BindingElement`), so
+  `user["phoneNumber"]` shipped undetected — a deleted/type-mutated field used via
+  bracket notation would silently pass the check.
+- Added a checkpoint: `ts.isElementAccessExpression(node)` with a string-literal
+  `argumentExpression`, recorded with the existing `kind: 'property-access'` (no change to
+  the frozen `UsageMatch` type — Law 1). Dynamic keys (`user[key]`) stay untracked, same
+  as before.
+- Added 3 acceptance tests (bracket literal match, dynamic-key skip, multi-hit columns);
+  updated `docs/specs/C-ast-scan.md` and `docs/PLAN.md §7` to reflect the new checkpoint
+  instead of listing it as out-of-scope/forbidden.
+- Outcome: merged `--no-ff`, branch deleted, pushed to `origin/main`. Verified with
+  `npm run typecheck` (clean) and `npm test` (24 files / 180 tests passing).

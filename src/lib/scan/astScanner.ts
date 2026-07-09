@@ -18,9 +18,13 @@ function scriptKindFromPath(filePath: string): ts.ScriptKind {
 
 /**
  * Parse `sourceText` with the native TypeScript compiler and return every reference to a
- * field in `targetFields`, via two checkpoints only:
- *   1. PropertyAccessExpression  — `response.data.phoneNumber`, `user?.phoneNumber`
- *   2. BindingElement (object destructuring) — `const { phoneNumber } = u`
+ * field in `targetFields`, via these checkpoints:
+ *   1. PropertyAccessExpression — `response.data.phoneNumber`, `user?.phoneNumber`
+ *   2. ElementAccessExpression with a string-literal key — `user["phoneNumber"]`
+ *      (recorded with the same 'property-access' kind as checkpoint 1 — it is the same
+ *      read, just bracket syntax. A non-literal key, e.g. `user[key]`, is dynamic and not
+ *      statically trackable, so it is skipped.)
+ *   3. BindingElement (object destructuring) — `const { phoneNumber } = u`
  * The destructuring alias trap (Law 6): match the SOURCE property key, never the local alias.
  */
 export function scanSourceForFields(opts: {
@@ -89,11 +93,18 @@ export function scanSourceForFields(opts: {
       if (ts.isIdentifier(name) && targetFields.has(name.text)) {
         record(name.text, 'property-access', name);
       }
-      // extension point: ElementAccessExpression (`u["phoneNumber"]`) is out of scope for
-      // v1 (PLAN §7). If added, handle it here by reading a StringLiteral argumentExpression.
     }
 
-    // --- Checkpoint 2: Object Destructuring (e.g. `const { phoneNumber } = u`) ---
+    // --- Checkpoint 2: Bracket Property Access with a string-literal key
+    // (e.g. `user["phoneNumber"]`) — same read as checkpoint 1, different syntax. ---
+    else if (ts.isElementAccessExpression(node)) {
+      const arg = node.argumentExpression;
+      if (ts.isStringLiteral(arg) && targetFields.has(arg.text)) {
+        record(arg.text, 'property-access', arg);
+      }
+    }
+
+    // --- Checkpoint 3: Object Destructuring (e.g. `const { phoneNumber } = u`) ---
     else if (ts.isBindingElement(node)) {
       const sourceKey = destructuringSourceKey(node);
       if (sourceKey !== null && targetFields.has(sourceKey)) {
