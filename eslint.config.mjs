@@ -2,6 +2,12 @@ import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
 import nextTypescript from "eslint-config-next/typescript";
 
 const eslintConfig = [
+  {
+    // Git worktrees (used by isolated background agents) live under .claude/worktrees —
+    // they're full checkouts of the repo, including ones other sessions may have locked
+    // for in-progress work. Never lint into them.
+    ignores: [".claude/**"],
+  },
   ...nextCoreWebVitals,
   ...nextTypescript,
   {
