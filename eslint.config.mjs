@@ -6,7 +6,11 @@ const eslintConfig = [
     // Git worktrees (used by isolated background agents) live under .claude/worktrees —
     // they're full checkouts of the repo, including ones other sessions may have locked
     // for in-progress work. Never lint into them.
-    ignores: [".claude/**"],
+    //
+    // tests/fixtures/** is deliberately-crafted sample frontend source consumed by the
+    // AST scanner (Law 7: syntactic scanning via ts.SyntaxKind, type-agnostic) — it's
+    // fixture data, not maintained application code, so it isn't linted.
+    ignores: [".claude/**", "tests/fixtures/**"],
   },
   ...nextCoreWebVitals,
   ...nextTypescript,
