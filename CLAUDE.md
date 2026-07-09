@@ -111,7 +111,8 @@ supabase/migrations/  SQL DDL
 Runtime: `next@^15`, `react@^19`, `react-dom@^19`, `typescript@^5` (runtime dep — the
 scanner uses it), `yaml@^2`, `octokit@^4`, `@supabase/supabase-js@^2`.
 Dev: `vitest@^3`, `@types/node@^22`, `@types/react@^19` (type companion required for the
-React/Next typed build; no runtime footprint).
+React/Next typed build; no runtime footprint), `eslint@^9`, `eslint-config-next@^16`
+(flat-config lint setup; `npm run lint`).
 Node built-ins (`node:crypto`, `node:buffer`) are always allowed.
 
 ## Environment variables (accessed only via `src/config/env.ts`)
