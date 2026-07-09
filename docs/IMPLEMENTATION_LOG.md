@@ -84,10 +84,6 @@ record of what happened, not a plan.
 - Outcome: merged `--no-ff`, branch deleted, pushed. Confirmed green on the actual
   GitHub Actions run (`29041262749`, 44s).
 
-**Still open:** `npm run lint` is not wired into `.github/workflows/ci.yml`. 4 lint
-violations remain (2 real, 2 intentionally-documented). Decision needed: fix the 2 real
-ones and gate CI on lint, or leave lint local-only for now.
-
 ## 2026-07-10
 
 **Bracket-notation field scanning** (`feat/element-access-scanning`, merged to `main`)
@@ -105,3 +101,36 @@ ones and gate CI on lint, or leave lint local-only for now.
   instead of listing it as out-of-scope/forbidden.
 - Outcome: merged `--no-ff`, branch deleted, pushed to `origin/main`. Verified with
   `npm run typecheck` (clean) and `npm test` (24 files / 180 tests passing).
+
+**Verified and pushed the above bracket-notation work** — it had been merged into local
+`main` but not yet pushed when discovered mid-session (from a separate concurrent
+session working in a locked worktree). Reviewed the diff directly (code, tests, spec/plan
+doc updates), ran the full local verify (`typecheck`/`lint`/`test`, 180/180 passing, no
+new lint violations) before pushing. By the time push was confirmed, the other session had
+already pushed it itself — `git push` reported "Everything up-to-date".
+
+**Fix: `layout.tsx` used `<a>` instead of `next/link`** (`fix/layout-use-next-link`, merged to `main`)
+- `@next/next/no-html-link-for-pages`: the root layout's brand link to `/` was a plain
+  `<a>`, forcing a full page reload for an internal route instead of client-side nav.
+- Swapped for `<Link href="/">` from `next/link`. No behavior change beyond navigation
+  becoming client-side.
+- Outcome: merged `--no-ff`, branch deleted, pushed. Confirmed green on the actual
+  GitHub Actions run (`29042752747`).
+
+**Fix: suppressed `react-hooks/set-state-in-effect` in `LinkManager.tsx`** (`fix/suppress-set-state-in-effect`, merged to `main`)
+- The mount effect calls `load()`, which itself calls several `setState`s. `load` is also
+  called after create/delete mutations (2 other call sites) to refresh the list, so
+  inlining the fetch into just the effect would mean duplicating that logic three times —
+  worse than the thing being flagged. This is the standard single mount-time fetch
+  pattern (one effect, fires once, nothing chains off the state it sets), not the
+  effect-cascade pattern the rule targets.
+- Added a scoped `eslint-disable-next-line` with an in-code comment explaining why, and
+  what to do if this needs to be un-suppressed later: if `load`/this component ever grows
+  a second effect reacting to `repos`/`links`/`loading`/`error`, split `load` into a pure
+  fetch-and-return function and have each call site (mount, post-create, post-delete) do
+  its own `setState` from the result.
+- Outcome: merged `--no-ff`, branch deleted, pushed. Confirmed green on the actual
+  GitHub Actions run (`29043038692`). Lint is now down to 2 problems — both the
+  documented intentional `any` casts in test helpers.
+
+**Still open:** `npm run lint` is not wired into `.github/workflows/ci.yml`.
