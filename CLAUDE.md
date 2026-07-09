@@ -28,11 +28,29 @@ src/config/       env.ts — typed, validated env access (only place touching pr
 src/lib/crypto/   verifySignature.ts — HMAC-SHA256 webhook validation
 src/lib/diff/     parseSpec.ts, flattenSchema.ts, diffSchemas.ts — pure contract diffing
 src/lib/scan/     concurrency.ts, astScanner.ts (pure), scanRepo.ts (IO orchestration)
-src/lib/db/       supabase.ts, projectLinks.ts — project_links lookups
-src/lib/github/   client.ts, contents.ts, checks.ts, comments.ts — Octokit adapters
+src/lib/db/       supabase.ts, projectLinks.ts — project_links lookups; linkAdmin.ts —
+                  dashboard-only link CRUD (Spec K)
+src/lib/github/   client.ts, contents.ts, checks.ts, comments.ts — Octokit adapters;
+                  userRepos.ts — dashboard-only user-token adapter listing repos the
+                  signed-in user can reach through an App installation (Spec K)
 src/lib/report/   verdict.ts, formatComment.ts — pure verdict matrix + markdown
+src/lib/auth/     session.ts (seal/unseal an encrypted session cookie), oauth.ts
+                  (GitHub OAuth code exchange), authorize.ts (pure authorization law for
+                  linking a repo) — dashboard sign-in (Spec K)
 src/lib/pipeline/ processPullRequest.ts — the only module allowed to glue everything
 src/app/api/webhook/github/route.ts — Next.js route: verify → 202 → after()
+src/app/api/auth/     login/, callback/, logout/route.ts — GitHub OAuth login kickoff,
+                       callback, and session logout (Spec K)
+src/app/api/dashboard/ repos/route.ts — accessible-repo listing for the dashboard UI (Spec K)
+src/app/api/links/    route.ts — link CRUD (GET/POST/DELETE); every mutation re-authorizes
+                       server-side against a fresh fetch of the caller's accessible repos
+                       (Spec K)
+src/app/api/_lib/     requireSession.ts — shared session/CSRF/dependency-construction
+                       helpers for the routes above; `_` prefix opts it out of Next.js
+                       routing (not a route file)
+src/app/dashboard/    page.tsx (server component: resolves the session, redirects if
+                       signed out) + LinkManager.tsx (client UI for viewing/creating/
+                       deleting links) (Spec K)
 tests/            Mirrors src/. Fixtures in tests/fixtures/
 supabase/migrations/  SQL DDL
 ```
@@ -100,7 +118,15 @@ Node built-ins (`node:crypto`, `node:buffer`) are always allowed.
 
 `GITHUB_WEBHOOK_SECRET`, `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY` (\n-escaped; env.ts
 un-escapes), `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SCAN_CONCURRENCY` (default 8),
-`MAX_SCAN_FILES` (default 2000).
+`MAX_SCAN_FILES` (default 2000). These seven are validated by `loadEnv()` / the `Env`
+interface and are required for the core webhook pipeline.
+
+Five more variables power the **optional** public onboarding dashboard (Spec K) only —
+`GITHUB_APP_CLIENT_ID`, `GITHUB_APP_CLIENT_SECRET`, `GITHUB_APP_SLUG`,
+`GUARDRAIL_SESSION_SECRET` (must be >= 32 characters — `loadDashboardEnv()` throws
+otherwise), `APP_BASE_URL` (trailing slash stripped at load). They are validated
+separately by `loadDashboardEnv()` / the `DashboardEnv` interface in `src/config/env.ts`,
+NOT by `loadEnv()` — the webhook pipeline works on deployments that never set any of them.
 
 ## Local machine notes
 
