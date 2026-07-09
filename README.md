@@ -5,7 +5,7 @@
 > AST-scans the linked frontend repo for live usage, and blocks the merge via the GitHub
 > Checks API — with exact file/line locations — when the change would break the UI.
 
-**Status:** core pipeline complete and fully tested (160 tests green), plus an optional
+**Status:** core pipeline complete and fully tested (177 tests green), plus an optional
 public onboarding [dashboard](#dashboard). Not yet wired to a live GitHub App / Supabase
 project — see [Deployment](#deployment).
 
@@ -98,7 +98,7 @@ docs/                                     — architecture plan & per-module spe
 ```bash
 npm install
 npm run typecheck   # tsc --noEmit
-npm test            # vitest run — 160 tests
+npm test            # vitest run — 177 tests
 npm run dev         # next dev (needs env vars configured, below)
 ```
 
