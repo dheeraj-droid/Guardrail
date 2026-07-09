@@ -5,9 +5,11 @@
 > AST-scans the linked frontend repo for live usage, and blocks the merge via the GitHub
 > Checks API — with exact file/line locations — when the change would break the UI.
 
-**Status:** core pipeline complete and fully tested (177 tests green), plus an optional
-public onboarding [dashboard](#dashboard). Not yet wired to a live GitHub App / Supabase
-project — see [Deployment](#deployment).
+**Status:** v1 complete — core pipeline plus the optional public onboarding
+[dashboard](#dashboard) (specs A–K and W0, all build waves through Wave 4). 180 tests
+green across 24 files, `npm run typecheck` and `npm run lint` clean, CI green on `main`.
+Not yet run end-to-end against a live GitHub App / Supabase / Vercel deployment on a real
+PR — see [Deployment](#deployment).
 
 ## Why
 
@@ -98,7 +100,7 @@ docs/                                     — architecture plan & per-module spe
 ```bash
 npm install
 npm run typecheck   # tsc --noEmit
-npm test            # vitest run — 177 tests
+npm test            # vitest run — 180 tests
 npm run dev         # next dev (needs env vars configured, below)
 ```
 
