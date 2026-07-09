@@ -52,3 +52,38 @@ record of what happened, not a plan.
 - Outcome: merged `--no-ff`, branch deleted, pushed to `origin/main`. Re-verified on
   `main`: `npm run typecheck` clean, `npm run lint` back to the expected 8 problems,
   `npm test` 24/24 files, 177/177 tests passing.
+
+**Fix: broken `package-lock.json` was failing CI on `ubuntu-latest`** (`fix/regenerate-package-lock`, merged to `main`)
+- All local verification up to this point ran on Windows/Node 24 and only ever checked
+  `npm run typecheck`/`test`, never the actual GitHub Actions run — so two pushes to
+  `main` had silently gone red without being noticed. Caught by explicitly checking
+  `gh run list` after the fact.
+- Root cause: `npm install` run locally (to sync `node_modules` after the ESLint agent's
+  worktree-only install) produced a lockfile missing platform-specific optional-dependency
+  entries (`@emnapi/runtime@1.11.2`, `@emnapi/core@1.11.2`) that `npm ci` on
+  `ubuntu-latest` needs — `npm ci` refuses to proceed on any package.json↔lock drift
+  (`EUSAGE`).
+- Fix: `rm -rf node_modules package-lock.json && npm install`, then verified with
+  `rm -rf node_modules && npm ci` locally (the exact command CI runs) before pushing.
+- Outcome: merged `--no-ff`, branch deleted, pushed. **Confirmed green on the actual
+  GitHub Actions run** (`gh run watch`), not just local checks — run
+  `29041079947`, `build` job, 46s, all steps passed.
+
+**Fix: ESLint excluding `tests/fixtures/**`** (`fix/eslint-exclude-fixtures`, merged to `main`)
+- Correction to the earlier ESLint entry above: the `any`-cast violations in
+  `tests/fixtures/profile.tsx`/`settings.ts` were left unfixed with the reasoning "fixing
+  them risks breaking AST-scanner assertions" — that reasoning was wrong. Per Law 7 the
+  scanner is syntactic (`PropertyAccessExpression`/`BindingElement`), so a fixture's
+  declared type has no effect on what it detects. The correct reasoning: fixtures are
+  deliberately-crafted sample frontend source, not maintained application code, so they
+  shouldn't be linted at all — same category as `.claude/**`.
+- Added `tests/fixtures/**` to `eslint.config.mjs`'s `ignores`. Violation count dropped
+  from 8 to 4 (the two real findings in `LinkManager.tsx`/`layout.tsx`, plus the two
+  documented intentional `any` casts in `tests/helpers/fakeGithub.ts` and
+  `tests/pipeline/processPullRequest.test.ts`).
+- Outcome: merged `--no-ff`, branch deleted, pushed. Confirmed green on the actual
+  GitHub Actions run (`29041262749`, 44s).
+
+**Still open:** `npm run lint` is not wired into `.github/workflows/ci.yml`. 4 lint
+violations remain (2 real, 2 intentionally-documented). Decision needed: fix the 2 real
+ones and gate CI on lint, or leave lint local-only for now.
