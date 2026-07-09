@@ -53,7 +53,7 @@ export function parseOpenApiSpec(
     // Unknown extension: try JSON first, on failure try YAML.
     try {
       parsed = JSON.parse(raw);
-    } catch (jsonErr) {
+    } catch {
       try {
         parsed = parseYaml(raw);
       } catch (yamlErr) {
