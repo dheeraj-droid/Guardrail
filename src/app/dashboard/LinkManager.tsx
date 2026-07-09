@@ -67,6 +67,21 @@ export function LinkManager({ login }: LinkManagerProps) {
   }, []);
 
   useEffect(() => {
+    // Suppressing react-hooks/set-state-in-effect here rather than fixing it "for real":
+    // `load` also has to run from handleSubmit (line ~116) and the delete handler (line
+    // ~134) to refresh the list after a mutation, so it can't be inlined into just this
+    // effect without duplicating the fetch/setState logic three times. This is the
+    // standard single mount-time fetch pattern (one effect, fires once, no other effect
+    // reacts to the state it sets) — not the effect-chain/render-cascade case the rule
+    // is designed to catch.
+    //
+    // Revisit this suppression if `load` (or this component) ever grows a second effect
+    // that reacts to `repos`/`links`/`loading`/`error` — that would be the actual
+    // cascading-render pattern the rule warns about, and at that point the fix is to
+    // split `load` into a pure "fetch and return data" function, with each call site
+    // (mount effect, post-create, post-delete) doing its own setState from the result,
+    // so the effect itself no longer calls into shared state-setting code.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [load]);
 
