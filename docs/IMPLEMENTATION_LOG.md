@@ -133,4 +133,21 @@ already pushed it itself — `git push` reported "Everything up-to-date".
   GitHub Actions run (`29043038692`). Lint is now down to 2 problems — both the
   documented intentional `any` casts in test helpers.
 
-**Still open:** `npm run lint` is not wired into `.github/workflows/ci.yml`.
+**Fix: documented and suppressed the last 2 `any` casts** (`fix/document-any-casts`, merged to `main`)
+- Both `findCall()` test helpers (`tests/helpers/fakeGithub.ts`, `tests/pipeline/processPullRequest.test.ts`)
+  already had a JSDoc explaining the `any` return type; added the matching scoped
+  `eslint-disable-next-line @typescript-eslint/no-explicit-any` so lint actually passes
+  instead of just being explained. `npm run lint` now reports 0 problems.
+- Outcome: merged `--no-ff`, branch deleted, pushed. Verified `npm run typecheck`
+  (clean), `npm run lint` (0 problems), `npm test` (24 files / 180 tests passing).
+
+**Chore: gate CI on `npm run lint`** (`chore/gate-ci-on-lint`, merged to `main`)
+- With lint at 0 violations (previous entry), added `npm run lint` to
+  `.github/workflows/ci.yml` between `typecheck` and `test` so future lint regressions
+  fail CI instead of accumulating silently.
+- Outcome: merged `--no-ff`, branch deleted, pushed. Verified locally (`typecheck`
+  clean, `lint` 0 problems, `test` 24 files / 180 tests) before pushing; confirm on the
+  next GitHub Actions run that the new `lint` step executes and passes.
+
+**Closed:** the ESLint follow-up items (2 real findings + CI gating) noted as "still
+open" above are now all resolved.
