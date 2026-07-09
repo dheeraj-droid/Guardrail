@@ -153,6 +153,7 @@ function makeDeps(opts: { link: ProjectLink | null; octokit: Octokit }): {
  * (the real Octokit response/params shapes are asserted structurally via toMatchObject
  * elsewhere; casting here only reduces test-file noise when reaching into nested
  * `output.title` / `output.summary` fields). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function findCall(request: ReturnType<typeof vi.fn>, route: string): any {
   const call = request.mock.calls.find(([r]) => r === route);
   expect(call, `expected a call to ${route}`).toBeDefined();
