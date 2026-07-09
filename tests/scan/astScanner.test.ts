@@ -127,4 +127,27 @@ describe('scanSourceForFields', () => {
     expect(scan('const o = { phoneNumber: value };')).toHaveLength(0);
     expect(scan('const o = { phoneNumber };')).toHaveLength(0);
   });
+
+  // Acceptance 15: bracket access with a string-literal key is the same read as dot access.
+  it('matches bracket access with a string-literal key as property-access', () => {
+    const matches = scan('const p = user["phoneNumber"];');
+    expect(matches).toHaveLength(1);
+    expect(matches[0]!.field).toBe('phoneNumber');
+    expect(matches[0]!.kind).toBe('property-access');
+  });
+
+  // Acceptance 16: bracket access with a non-literal (dynamic) key is not statically
+  // trackable, even if the identifier used as the key is itself a target field name.
+  it('skips bracket access with a dynamic (non-literal) key', () => {
+    const matches = scan('const p = user[phoneNumber];', 'src/component.ts', new Set(['phoneNumber']));
+    expect(matches).toHaveLength(0);
+  });
+
+  // Acceptance 17: multiple bracket-access hits on one line at different columns.
+  it('records multiple bracket-access matches at different columns', () => {
+    const matches = scan('const total = a["age"] + b["age"];');
+    expect(matches).toHaveLength(2);
+    expect(matches.every((m) => m.field === 'age' && m.kind === 'property-access')).toBe(true);
+    expect(matches[0]!.column).not.toBe(matches[1]!.column);
+  });
 });

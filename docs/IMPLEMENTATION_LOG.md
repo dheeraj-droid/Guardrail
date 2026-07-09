@@ -28,3 +28,19 @@ record of what happened, not a plan.
 - First two attempts didn't land (one interrupted by the user before committing, one hit
   a transient API connection error before creating its branch) — retried.
 - Outcome: pending.
+
+**Bracket-notation field scanning** (`feat/element-access-scanning`, merged to `main`)
+- Closed a documented v1 false-negative gap (`PLAN.md §7`, `docs/specs/C-ast-scan.md`
+  "Forbidden"): `astScanner.ts` previously only matched dot-access
+  (`PropertyAccessExpression`) and destructuring (`BindingElement`), so
+  `user["phoneNumber"]` shipped undetected — a deleted/type-mutated field used via
+  bracket notation would silently pass the check.
+- Added a third checkpoint: `ts.isElementAccessExpression(node)` with a string-literal
+  `argumentExpression`, recorded with the existing `kind: 'property-access'` (no change to
+  the frozen `UsageMatch` type — Law 1). Dynamic keys (`user[key]`) stay untracked, same
+  as before.
+- Added 3 acceptance tests (bracket literal match, dynamic-key skip, multi-hit columns);
+  updated `docs/specs/C-ast-scan.md` and `docs/PLAN.md §7` to reflect the new checkpoint
+  instead of listing it as out-of-scope/forbidden.
+- Outcome: merged `--no-ff`, branch deleted, pushed to `origin/main`. Verified with
+  `npm run typecheck` (clean) and `npm test` (24 files / 180 tests passing).
