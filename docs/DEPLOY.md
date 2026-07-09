@@ -226,7 +226,7 @@ Advanced → Recent Deliveries → **Redeliver** re-sends a payload without open
 `npm run dev` serves the route at `http://localhost:3000/api/webhook/github`, but the
 pipeline makes real GitHub/Supabase calls, so a meaningful local run needs real creds in
 `.env` plus a tunnel (e.g. `cloudflared`/`ngrok`) so GitHub can reach you — point the App's
-webhook URL at the tunnel. For logic changes, the 127-test suite (`npm test`) already
+webhook URL at the tunnel. For logic changes, the 180-test suite (`npm test`) already
 exercises the full pipeline against fakes, including the end-to-end verdict matrix in
 `tests/integration/pipeline.e2e.test.ts` — that's the fast inner loop; the real PR is the
 final confirmation.

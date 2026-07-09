@@ -151,3 +151,21 @@ already pushed it itself — `git push` reported "Everything up-to-date".
 
 **Closed:** the ESLint follow-up items (2 real findings + CI gating) noted as "still
 open" above are now all resolved.
+
+**Docs: sync README/PLAN/DEPLOY to the verified v1-complete state** (`docs/update-v1-status`, merged to `main`)
+- Verified current state directly rather than trusting prior doc claims: `npm run
+  typecheck` (clean), `npm run lint` (0 problems), `npm test` (24 files / 180 tests
+  passing).
+- `README.md`: updated the stale "177 tests green" Status line and "177 tests" comment to
+  180; reworded Status to state v1 (specs A–K + W0, all build waves) is complete and
+  CI-verified, while keeping the existing caveat that it hasn't been run end-to-end
+  against a live GitHub App / Supabase / Vercel deployment on a real PR.
+- `docs/DEPLOY.md`: fixed a stale "127-test suite" reference (Local development section)
+  to 180.
+- `docs/PLAN.md`: added a one-line Status note under the intro pointing to this log for
+  the change-by-change record; confirmed §7 ("Out of scope for v1") does not list
+  bracket-notation scanning as forbidden (already corrected by the
+  `feat/element-access-scanning` entry above) — no further edit needed there.
+- Outcome: merged `--no-ff`, branch deleted, pushed to `origin/main`. Verified
+  `npm run typecheck` (clean), `npm run lint` (0 problems), `npm test` (24 files / 180
+  tests passing) before pushing.
