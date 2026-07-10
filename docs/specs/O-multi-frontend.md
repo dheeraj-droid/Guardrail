@@ -13,7 +13,11 @@ this new function are Track P's job (Wave V2, `docs/specs/P-pipeline-v2-integrat
 parallel wave) never touch the same file. See `docs/PLAN_V2.md §4` for why: the product
 decision is **one aggregated verdict per PR**, not one check run per frontend, so there
 is no per-link naming/marker work for this track to do at all — `checks.ts` and
-`comments.ts` are untouched by this entire v2 effort.
+`comments.ts` have no aggregation-related changes anywhere in v2. (`checks.ts` does get
+one edit in this v2 effort, but for an unrelated reason: Track N makes
+`createInProgressCheckRun` idempotent to close a retry-queue double-run gap — see
+`docs/specs/N-retry-queue.md` File 5. That edit has nothing to do with multi-frontend
+fan-out and is not this track's concern.)
 
 Migration `0005_multi_frontend.sql` (Spec V0) has already dropped the solo `UNIQUE` on
 `project_links.backend_repo_id` and replaced it with a `(backend_repo_id,

@@ -182,25 +182,37 @@ sees success and won't redeliver even if the deferred work later dies silently.
   before acking (fast — a single HTTP round trip — and if publish fails, respond with a
   5xx so GitHub's own webhook-delivery retry covers it, rather than acking 202 into a
   job that never got enqueued). If not configured: today's `after()` path, unchanged.
-- **Idempotency (the sharp edge a queue introduces):** QStash retries on a lost 200 or a
-  transient failure; GitHub also retries webhook delivery independently. Either can cause
-  `processPullRequest` to run twice for the same delivery, and the GitHub Checks API does
-  **not** dedupe check runs with the same name/SHA — a second run creates a second,
-  possibly conflicting check run. New migration `0004_processed_deliveries.sql`:
-  ```sql
-  CREATE TABLE processed_deliveries (
-      delivery_id TEXT PRIMARY KEY,
-      processed_at TIMESTAMPTZ NOT NULL DEFAULT now()
-  );
-  ```
-  keyed by GitHub's `X-GitHub-Delivery` header (already unique per webhook delivery,
-  independent of whether it's replayed via QStash or GitHub's own retry). New
-  `src/lib/db/deliveries.ts`: `claimDelivery(db, deliveryId): Promise<boolean>` — a
-  single `INSERT ... ON CONFLICT DO NOTHING`, returns whether this call actually claimed
-  it. `route.ts` calls this once, right after HMAC verification and before either the
-  queue-publish or `after()` branch — a duplicate delivery short-circuits to a 200 no-op
-  before any pipeline work starts, in either mode. (This also retroactively hardens the
-  existing v1 `after()` path, at no cost to it.)
+- **Idempotency (the sharp edge a queue introduces) — REVISED after adversarial review
+  caught a real gap in the first draft:** the original design claimed a delivery-id
+  claim at ingress (`webhook/github/route.ts`) was sufficient. It is not: **QStash's own
+  retries land on the `process` route directly, never back through ingress**, so an
+  ingress-only claim never sees them. Two `process` invocations for the same commit,
+  and the GitHub Checks API does **not** dedupe check runs with the same name/SHA — a
+  second run creates a second, conflicting check run. Two independent, complementary
+  fixes, both required (`docs/specs/N-retry-queue.md`'s Purpose section has the full
+  reasoning):
+  1. New migration `0004_processed_deliveries.sql` (unchanged from the first draft):
+     ```sql
+     CREATE TABLE processed_deliveries (
+         delivery_id TEXT PRIMARY KEY,
+         processed_at TIMESTAMPTZ NOT NULL DEFAULT now()
+     );
+     ```
+     `src/lib/db/deliveries.ts`'s `claimDelivery(db, deliveryId): Promise<boolean>`,
+     called once at ingress before either the queue-publish or `after()` branch — this
+     still matters, but only for GitHub redelivering to *ingress*, not for QStash
+     redelivering to `process`.
+  2. **The fix that actually closes the QStash-retry gap:** `createInProgressCheckRun`
+     (`checks.ts`) becomes idempotent — before `POST`ing a new check run, it looks up
+     existing (non-`completed`) runs for that repo+sha+name and reuses one if found.
+     This protects at the point a duplicate would actually be created, regardless of
+     delivery mechanism or whether a delivery-id survived end-to-end, and — unlike
+     moving the claim into the `process` route — does not break the crash-recovery case
+     retries exist for: a retry that arrives before any check run was created still
+     creates one fresh. **This means `checks.ts` is no longer untouched by v2** —
+     Track O's aggregated-verdict decision (§4) still holds (one check run per PR, not
+     per frontend), but Track N now edits this file too, for an unrelated reason
+     (idempotency, not aggregation).
 
 ### Acceptance sketch
 
@@ -325,12 +337,14 @@ Wave V1 (4 parallel tracks — verified file-disjoint below, so genuinely parall
   L   src/lib/diff/resolveRefs.ts, src/lib/github/fetchExternalRefs.ts        (new files only)
   M   src/lib/diff/detectRenames.ts (new); diffSchemas.ts, formatComment.ts   (edits)
   N   src/lib/queue/qstash.ts, src/app/api/webhook/process/route.ts,
-      src/lib/db/deliveries.ts (new); src/app/api/webhook/github/route.ts    (edit)
+      src/lib/db/deliveries.ts (new); src/app/api/webhook/github/route.ts,
+      src/lib/github/checks.ts (edit — idempotent createInProgressCheckRun, needed to
+      actually close the QStash-retry double-run gap, see §3's revised idempotency note)
   O   src/lib/db/projectLinks.ts                                             (edit, additive)
 
   File-disjointness check: L touches no existing file. M touches diffSchemas.ts +
-  formatComment.ts, neither touched by L/N/O. N touches webhook/github/route.ts, touched
-  by no other track. O touches only projectLinks.ts (aggregation verdict — §4 — moved the
+  formatComment.ts, neither touched by L/N/O. N touches webhook/github/route.ts and
+  checks.ts, neither touched by any other Wave V1 track. O touches only projectLinks.ts (aggregation verdict — §4 — moved the
   rest of Track O's original scope to Track P specifically so it wouldn't collide with
   M's formatComment.ts edit in the same parallel wave). None of L/M/N/O touch
   processPullRequest.ts — that's reserved for Wave V2 below, same reasoning as v1's H

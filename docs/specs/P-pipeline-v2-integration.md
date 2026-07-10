@@ -259,11 +259,14 @@ primary regression gate for this entire track), plus new cases:
 
 - Changing `computeVerdict`'s signature or matrix (Spec F, untouched) — `aggregateVerdicts`
   wraps it, never replaces it.
-- Changing `createInProgressCheckRun`/`concludeCheckRun`/`upsertPrComment` signatures —
-  Track O's resolution (`docs/PLAN_V2.md §4`) means `checks.ts`/`comments.ts` need zero
-  v2 changes; if this track finds itself wanting to add a parameter there, stop and
-  reconsider the design instead (the aggregation is supposed to live entirely on the
-  caller side).
+- Changing `createInProgressCheckRun`/`concludeCheckRun`/`upsertPrComment` **signatures**
+  — Track O's aggregated-verdict resolution (`docs/PLAN_V2.md §4`) means the aggregation
+  work lives entirely on the caller side (this track), not in `checks.ts`/`comments.ts`.
+  (Track N does edit `createInProgressCheckRun`'s *body*, for an unrelated
+  idempotency reason — `docs/specs/N-retry-queue.md` File 5 — but its signature is
+  unchanged; this track calls it exactly as it always has.) If this track finds itself
+  wanting to add a parameter to any of these three functions, stop and reconsider the
+  design instead.
 - Any change to `tests/pipeline/processPullRequest.test.ts` that ALTERS an existing
   assertion rather than adding a new one — if an old assertion needs to change, that is
   a regression, not a valid edit.
