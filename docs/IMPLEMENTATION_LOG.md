@@ -170,6 +170,34 @@ open" above are now all resolved.
   `npm run typecheck` (clean), `npm run lint` (0 problems), `npm test` (24 files / 180
   tests passing) before pushing.
 
+**Docs: v2 implementation plan** (`docs/plan-v2`, merged to `main`)
+- Added `docs/PLAN_V2.md`, planning the four items `PLAN.md §7` listed as out-of-scope
+  for v1: $ref resolution (repo-relative file refs only — URL refs rejected on SSRF
+  grounds, not deferred), renamed-field detection (additive `BreakingChange.renamedTo`,
+  the only frozen-type edit in the whole plan), retries/queues beyond `after()` (opt-in
+  via a new `QSTASH_TOKEN`-gated `loadQueueEnv()`, no new npm dependency, plus a
+  `processed_deliveries` idempotency table), and multi-frontend fan-out (drops
+  `project_links.backend_repo_id`'s solo `UNIQUE`, loops `processPullRequest`'s existing
+  per-link logic under bounded concurrency rather than assuming a shared spec across
+  links).
+- Grounded every design decision in the actual current source (`processPullRequest.ts`,
+  `flattenSchema.ts`, `diffSchemas.ts`, `checks.ts`, `comments.ts`, `concurrency.ts`,
+  `env.ts`, the two existing migrations) rather than speculating — e.g. corrected an
+  initial assumption that the OpenAPI diff could be computed once and fanned out across
+  frontend links; each `project_links` row can set its own `openapi_file_path`, so the
+  plan instead fans out the whole existing per-link pipeline as one unit.
+  Laid out a 4-wave structure (V0 types/env/migrations → V1 four parallel tracks,
+  verified file-disjoint → V2 single-agent pipeline.ts integration → V3 verification),
+  proposed (not yet adopted) Law amendments, and flagged two open decisions for sign-off:
+  rejecting URL-based `$ref` resolution, and keeping per-frontend check runs/comments
+  independent rather than aggregating multi-frontend results into one verdict.
+- Scope confirmed with the user via `AskUserQuestion` before drafting: all four v1-backlog
+  items in, no additional new-scope items.
+- No `docs/specs/L-*.md` .. `O-*.md` files written yet — authoring those at v1's spec
+  fidelity is the deliberate next step, not part of this entry.
+- Outcome: docs-only change, no code/tests affected; `npm run typecheck` and `npm run
+  lint` re-verified clean before pushing.
+
 **Docs: confirm live end-to-end run, drop the stale "not yet run" caveat** (`docs/confirm-live-e2e-run`, merged to `main`)
 - The prior entry's README caveat ("not yet run end-to-end against a live deployment on a
   real PR") turned out to be false: the live deployment (`guardrail-coral.vercel.app`),

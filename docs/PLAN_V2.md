@@ -1,0 +1,405 @@
+# Guardrail — v2 Implementation Plan
+
+Companion to `docs/PLAN.md` (v1, complete and live-verified — see its Status line and
+`docs/IMPLEMENTATION_LOG.md`). This document plans exactly the four items `PLAN.md §7`
+listed as out-of-scope-for-v1, now scoped in for v2:
+
+1. **$ref resolution** across files in the same repo (SRD gap: local `#/components/schemas/*`
+   only today).
+2. **Renamed-field detection** (today a rename reports as `DELETED` + an ignored addition).
+3. **Retries/queues** beyond `after()` (no durable retry today if the process is killed
+   mid-pipeline).
+4. **Multi-frontend fan-out** (`project_links.backend_repo_id` is `UNIQUE` today — one
+   frontend per backend, monorepo aside).
+
+**Status:** planning only. No `docs/specs/L-*.md` .. `O-*.md` files exist yet — writing
+those (at the fidelity of `docs/specs/A-verify-signature.md` etc.) is the next step,
+using this document as the design brief. Nothing in `src/` changes until specs exist and
+are reviewed. Several decisions below are flagged **OPEN** — pending explicit sign-off
+before a spec is written against them.
+
+## 0. Ground rules carried over from v1
+
+Everything in `CLAUDE.md` still applies unmodified except where §8 below proposes a
+narrow, explicit amendment. In particular: Law 1 (frozen types), Law 2 (pure core / IO
+shell), Law 9 (bounded concurrency), Law 10 (fail-open), Law 13 (approved deps only), and
+Law 16 (branch per change) all constrain every design decision made here.
+
+## 1. Track L — $ref resolution
+
+### Current gap
+
+`flattenSchema.ts`'s `typeDescriptor()` treats any `$ref` as an opaque label
+(`'ref:' + lastSlashSegment(ref)`) and never resolves it. This works by accident for
+same-document refs to `#/components/schemas/X`, because the top-level walk over
+`components.schemas` already flattens `X` independently under its own name. It does
+**not** work when `$ref` points outside the document — e.g. `./schemas/user.yaml#/User` —
+because that schema is never fetched, so fields deleted/mutated inside it are invisible
+to the diff. That's the actual v1 blind spot this track closes.
+
+### Design
+
+- New pure file `src/lib/diff/resolveRefs.ts` (Law 2 — no IO):
+  - `findExternalRefs(spec, basePath): string[]` — walk the parsed spec (same recursive
+    shape `flattenSchema.ts` already walks) and collect every `$ref` string that is a
+    **relative file path** (contains `/` before any `#`, or has no `#` at all), resolved
+    against `basePath` (the directory of the spec file that referenced it). Depth-capped
+    at `MAX_REF_RESOLUTION_DEPTH` (new env, default 5) purely as a recursion guard on the
+    caller side (this function itself is one level).
+  - `mergeExternalRefs(spec, resolved: Map<string, Record<string, unknown>>): Record<string, unknown>` —
+    pure structural merge: for every external `$ref` found, splice the referenced
+    document's `components.schemas` entries into the root spec's `components.schemas`
+    under synthesized names (`<relativePath>#<originalName>`), and rewrite the original
+    `$ref` string to point at the synthesized local name. Cycle-safe via a visited-set
+    keyed by normalized ref target — a ref that resolves back to an ancestor is left
+    unresolved (falls back to today's opaque `ref:` label) rather than looping.
+- New IO file `src/lib/github/fetchExternalRefs.ts` (Spec E extension):
+  - `resolveSpecRefs(octokit, params): Promise<Record<string, unknown>>` — orchestrates:
+    `findExternalRefs` → bounded-concurrency fetch of each target via the existing
+    `fetchFileText` (Contents API, same repo/ref as the spec itself — Law 11's Contents
+    exception already covers spec files) → `parseOpenApiSpec` each → recurse up to the
+    depth cap → `mergeExternalRefs`. Uses `mapWithConcurrency` (Law 9), not a new
+    unbounded fetch pattern.
+- Pipeline integration (Wave V2, see §5): `processPullRequest.ts` calls
+  `resolveSpecRefs` on both `oldSpec` and `newSpec` immediately after `parseOpenApiSpec`,
+  before `diffOpenApiSchemas`. An unresolvable/failed external ref is **not** fatal to the
+  whole PR (Law 10 spirit extended to field-level): the field simply stays absent from
+  the diff, same as today's behavior for any ref the tool doesn't understand.
+
+### Decision: file refs only, no URL refs — **not deferred, rejected for v2**
+
+`$ref` values that are absolute URLs (`https://...`) are deliberately **not** resolved.
+Fetching an attacker-influenced URL from a webhook-triggered backend process is an SSRF
+vector (internal network / cloud-metadata endpoint access) and an easy DoS lever (slow or
+huge remote response) — the PR body is fully attacker-controlled input. File refs are
+safe because they resolve through the same GitHub App installation credentials already
+scoped to the repo being scanned; URL refs would need a new, separate trust boundary
+(scheme allowlist, DNS-rebind protection, response size/time caps, maybe an explicit
+per-link opt-in) that's a security review in its own right. Recommendation: leave URL
+refs opaque (today's behavior) permanently, or revisit as its own dedicated spec later —
+do not fold it into Track L.
+
+### Acceptance sketch
+
+- Multi-file fixture: `openapi.json` has `paths` referencing `./schemas/user.yaml#/User`;
+  deleting a field inside `user.yaml`'s `User` schema is detected as `DELETED`.
+- Circular ref (`a.yaml` refs `b.yaml` refs `a.yaml`) does not hang or stack-overflow.
+- Depth-exceeded chain degrades to the field being silently absent from the diff, not a
+  pipeline error.
+
+## 2. Track M — Renamed-field detection
+
+### Current behavior (correct, just unhelpful)
+
+A rename already surfaces as a `DELETED` breaking change today — correct, because
+frontend code referencing the old name genuinely does break. What's missing is the
+*hint*: nothing tells the PR author "this looks like a rename, update references to
+`newName`" instead of a bare "field deleted."
+
+### Design
+
+- **Type amendment (v2 Wave V0, one deliberate re-open of the frozen contract):** add one
+  optional field to `BreakingChange` in `src/types/contract.ts`:
+  ```ts
+  export interface BreakingChange {
+    field: string;
+    parent: string;
+    change: ChangeKind;
+    original?: string;
+    updated?: string;
+    renamedTo?: string; // NEW — set only when detectRenames finds an unambiguous match
+  }
+  ```
+  Additive and optional — no existing reader of `BreakingChange` breaks. This is the
+  **only** frozen-type edit in all of v2; see §7.
+- New pure file `src/lib/diff/detectRenames.ts`:
+  - `annotateRenames(changes, oldMap, newMap): BreakingChange[]` — for every `DELETED`
+    change in `parent` P with field X, find fields present in `newMap` under the same
+    parent P that are **not** present in `oldMap` (candidate additions) whose `type`
+    exactly equals `oldMap.get(P+'.'+X).type`. If exactly one such candidate Y exists,
+    and Y hasn't already been claimed by another deletion in this same pass, set
+    `renamedTo: Y`. Zero or multiple candidates → leave `renamedTo` unset (no guess on
+    ambiguity — a wrong rename hint is worse than no hint).
+  - `diffSchemas.ts` gains one line: call `annotateRenames(changes, oldMap, newMap)`
+    before the existing sort. No signature change to `diffOpenApiSchemas` — same
+    `(oldSpec, newSpec) => BreakingChange[]` contract, so nothing else in the codebase
+    (pipeline, tests) needs to know this ran.
+- `report/formatComment.ts` amendment: when rendering a `DELETED` change with
+  `renamedTo` set, render `` `age` was removed (looks like it was renamed to `ageYears`)
+  `` instead of the plain "was removed" line. `verdict.ts` conclusion logic is
+  **unchanged** — a rename is still a breaking change if referenced; `renamedTo` only
+  improves the message, never the pass/fail outcome.
+
+### Acceptance sketch
+
+- Unambiguous rename (`age` deleted, `ageYears: integer` added, only candidate) →
+  `renamedTo: 'ageYears'`.
+- Ambiguous rename (two same-typed added candidates in the same parent) → no
+  `renamedTo` on either.
+- Type also changed during the rename (`age: integer` → `ageInYears: string`) → not
+  flagged (types must match exactly; a coincidental type-compatible rename guess across a
+  type change is exactly the wrong-guess case being avoided).
+
+## 3. Track N — Retries / durable queue beyond `after()`
+
+### Current risk
+
+`route.ts` acks 202 then runs the pipeline inside `after()`. If the process is killed
+mid-work (execution-time limits, cold-start eviction) rather than throwing a catchable
+error, Law 10's fail-open `catch` never runs — the check run can be left hanging at
+`in_progress` with no retry. GitHub does retry webhook *delivery* itself on a non-2xx
+response, but by the time `after()` starts, the route has already returned 202, so GitHub
+sees success and won't redeliver even if the deferred work later dies silently.
+
+### Design
+
+- **Opt-in, not a replacement.** A queue is configured only if `QSTASH_TOKEN` is set
+  (new `loadQueueEnv()` in `src/config/env.ts`, following the exact `loadDashboardEnv()`
+  precedent — separate optional loader, never folded into `loadEnv()`/`Env`). Unconfigured
+  deployments keep today's `after()` behavior byte-for-byte. This avoids a breaking
+  change for every existing deployment (including the live one at `guardrail-coral.vercel.app`).
+- **No new npm dependency.** Per Law 13's strict approved-dependency list, use raw
+  `fetch()` against Upstash QStash's HTTP publish API and hand-rolled HMAC verification
+  of its callback signature via `node:crypto` — the same shape `verifySignature.ts`
+  already uses for GitHub's webhook HMAC. New file `src/lib/queue/qstash.ts`:
+  - `publishPipelineJob(env, input: PipelineInput): Promise<void>` — `POST
+    https://qstash.upstash.io/v2/publish/{processUrl}` with `Authorization: Bearer
+    ${QSTASH_TOKEN}` and `PipelineInput` as the JSON body.
+  - `verifyQStashSignature(rawBody, signatureHeader, signingKeys): boolean` — verifies
+    against QStash's documented HMAC scheme, checking both the current and next signing
+    key (QStash's key-rotation contract), `crypto.timingSafeEqual` per Law 4's spirit.
+- New route `src/app/api/webhook/process/route.ts`: the QStash delivery target. Verifies
+  the QStash signature (a **separate** trust boundary from GitHub's — never reuses
+  `GITHUB_WEBHOOK_SECRET`), parses `PipelineInput` from the body, and **awaits**
+  `processPullRequest` directly (no `after()` needed — QStash already grants this
+  invocation its own timeout/retry budget). Returns 200 on completion, a non-2xx on an
+  unexpected throw so QStash retries delivery.
+- `src/app/api/webhook/github/route.ts` amendment: after HMAC verification, branch on
+  whether `loadQueueEnv()` succeeds. If configured: **await** `publishPipelineJob`
+  before acking (fast — a single HTTP round trip — and if publish fails, respond with a
+  5xx so GitHub's own webhook-delivery retry covers it, rather than acking 202 into a
+  job that never got enqueued). If not configured: today's `after()` path, unchanged.
+- **Idempotency (the sharp edge a queue introduces):** QStash retries on a lost 200 or a
+  transient failure; GitHub also retries webhook delivery independently. Either can cause
+  `processPullRequest` to run twice for the same delivery, and the GitHub Checks API does
+  **not** dedupe check runs with the same name/SHA — a second run creates a second,
+  possibly conflicting check run. New migration `0004_processed_deliveries.sql`:
+  ```sql
+  CREATE TABLE processed_deliveries (
+      delivery_id TEXT PRIMARY KEY,
+      processed_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+  ```
+  keyed by GitHub's `X-GitHub-Delivery` header (already unique per webhook delivery,
+  independent of whether it's replayed via QStash or GitHub's own retry). New
+  `src/lib/db/deliveries.ts`: `claimDelivery(db, deliveryId): Promise<boolean>` — a
+  single `INSERT ... ON CONFLICT DO NOTHING`, returns whether this call actually claimed
+  it. `route.ts` calls this once, right after HMAC verification and before either the
+  queue-publish or `after()` branch — a duplicate delivery short-circuits to a 200 no-op
+  before any pipeline work starts, in either mode. (This also retroactively hardens the
+  existing v1 `after()` path, at no cost to it.)
+
+### Acceptance sketch
+
+- No `QSTASH_TOKEN` set → route behaves exactly as it does on `main` today (regression
+  test: existing e2e fixture unchanged).
+- `QSTASH_TOKEN` set → route publishes and acks only after publish succeeds; `process`
+  route processes the job and concludes the check run.
+- Same `X-GitHub-Delivery` header delivered twice (either path) → second delivery is a
+  no-op, no duplicate check run.
+- One **manual** live verification against a real QStash sandbox before shipping (mirror
+  the live-verification entry already in `IMPLEMENTATION_LOG.md` for v1 — unit/e2e tests
+  mock the publish call; only a real run proves the callback round-trip).
+
+## 4. Track O — Multi-frontend fan-out
+
+### Current constraint
+
+`0001_project_links.sql`: `backend_repo_id BIGINT NOT NULL UNIQUE` — one row per backend
+repo, full stop. `getProjectLinkByBackendRepoId` returns `ProjectLink | null` via
+`.maybeSingle()`. `processPullRequest.ts` is written end-to-end around exactly one link:
+one check run, one comment, one frontend scan.
+
+### Design
+
+- Migration `0005_multi_frontend.sql` (numbered after Track N's `0004`; **the
+  orchestrator, not either track's agent, fixes final migration ordering at merge time —
+  same principle as Law 12's "orchestrator owns global gates," extended to migration
+  numbers since Tracks N and O are developed in parallel**):
+  ```sql
+  ALTER TABLE project_links DROP CONSTRAINT project_links_backend_repo_id_key;
+  ALTER TABLE project_links
+    ADD CONSTRAINT project_links_backend_frontend_unique
+    UNIQUE (backend_repo_id, frontend_repo_id);
+  ```
+- `src/lib/db/projectLinks.ts`: add `getProjectLinksByBackendRepoId(db, backendRepoId):
+  Promise<ProjectLink[]>` (plural — new function, additive; the existing singular
+  function stays, since Spec K's dashboard link-management flows key off `link.id`, not
+  backend-repo lookup, and other call sites may still want it). Empty array when no links
+  exist — no behavior change to "unregistered repo" handling.
+- `processPullRequest.ts` restructure — **kept deliberately conservative**: rather than
+  computing the contract diff once and fanning out only the scan (which would require
+  assuming every link for a backend repo shares the same `openapi_file_path`, which the
+  schema does not actually guarantee — each `project_links` row sets its own), extract
+  today's entire steps 2–11 verbatim into a private `processLinkForPr(deps, input,
+  link): Promise<void>` that **never rejects** (same total fail-open contract the current
+  function already has end-to-end). The exported `processPullRequest` becomes: resolve
+  links (plural) → empty → skip (unchanged) → `mapWithConcurrency(links,
+  maxFrontendLinksConcurrency, link => processLinkForPr(...))`. `mapWithConcurrency`
+  rejects on the *first* worker error (per `concurrency.ts`'s own doc comment) — safe
+  here only because `processLinkForPr` is required to swallow everything internally,
+  exactly as the current function already does.
+  - New env `MAX_FRONTEND_LINKS_CONCURRENCY` (default 3) — a second, independent
+    concurrency axis from `SCAN_CONCURRENCY` (files within one frontend). Note in the
+    risk register: worst case is `3 × 8 = 24` concurrent GitHub API calls, still well
+    inside App-installation rate limits, but the two caps compound and should be
+    documented together, not tuned in isolation.
+  - The common case (exactly one link) produces byte-identical behavior to v1 — this is
+    the regression safety net: today's e2e fixture becomes an N=1 case of the new loop.
+- Check-run naming: `createInProgressCheckRun` / `concludeCheckRun` gain an optional
+  `nameSuffix?: string` param (additive, defaults to today's unsuffixed
+  `CHECK_NAME`). `processLinkForPr` passes a suffix (`` `(${frontendOwner}/${frontendRepo})` ``)
+  **only when `links.length > 1`** — so single-link deployments see no name change at
+  all.
+- Comment scoping: `upsertPrComment`'s marker-matching (`COMMENT_MARKER`) must become
+  per-link when `links.length > 1`, or N frontends' comments will find and overwrite each
+  other. `formatComment.ts`/`comments.ts` gain an optional marker suffix
+  (`<!-- guardrail-report:${link.id} -->`) used only in the multi-link case — same
+  single-link-unchanged principle as check-run naming.
+
+### Decision: independent pass/fail per frontend, not one aggregated verdict — **OPEN,
+recommend but flag for sign-off**
+
+Two frontends linked to one backend PR can have genuinely different outcomes — frontend A
+doesn't reference the deleted field (should pass), frontend B does (should block). A
+single aggregated check run would force an artificial one-size-fits-all verdict and lose
+that signal (either both pass, hiding B's real breakage, or both fail, blocking A's
+unrelated merge for no reason). Recommendation: keep them fully independent (separate
+named check runs + separate comments, per above), accepting more check-run/comment
+volume on high-fan-out PRs as the correct tradeoff. This is the default assumption
+threaded through the rest of Track O's design above — flag before a spec is written in
+case the actual product intent is "one verdict per PR regardless of frontend count."
+
+### Acceptance sketch
+
+- Two links, one backend repo: frontend A doesn't reference the changed field (passes),
+  frontend B does (fails) → two independently-concluded, distinctly-named check runs on
+  the same PR, each with its own comment.
+- One link (today's common case): identical check-run name, identical comment marker,
+  identical conclusion logic to what's on `main` right now — today's e2e fixture passes
+  unmodified.
+
+## 5. Wave structure
+
+Same wave-loop/gate discipline as `PLAN.md §4` (orchestrator spawns per-track agents,
+waits, runs the global gate, repairs on failure — max 2 repair rounds per wave, escalate
+to human if still red).
+
+```
+Wave V0 (sequential, one agent — mirrors W0's role)
+  - src/types/contract.ts: add BreakingChange.renamedTo (Track M, the ONLY frozen-type edit)
+  - src/config/env.ts: add loadQueueEnv() (Track N) and MAX_REF_RESOLUTION_DEPTH /
+    MAX_FRONTEND_LINKS_CONCURRENCY to the existing loadEnv() (Tracks L, O)
+  - supabase/migrations/0004_processed_deliveries.sql (Track N)
+  - supabase/migrations/0005_multi_frontend.sql (Track O)
+    (orchestrator fixes final numbering — see §4)
+
+Wave V1 (4 parallel tracks — verified file-disjoint below, so genuinely parallel-safe)
+  L   src/lib/diff/resolveRefs.ts, src/lib/github/fetchExternalRefs.ts        (new files only)
+  M   src/lib/diff/detectRenames.ts (new); diffSchemas.ts, formatComment.ts   (edits)
+  N   src/lib/queue/qstash.ts, src/app/api/webhook/process/route.ts,
+      src/lib/db/deliveries.ts (new); src/app/api/webhook/github/route.ts    (edit)
+  O   src/lib/db/projectLinks.ts, src/lib/github/checks.ts,
+      src/lib/github/comments.ts                                             (edits, additive)
+
+  File-disjointness check: L touches no existing file. M touches diffSchemas.ts +
+  formatComment.ts, neither touched by L/N/O. N touches webhook/github/route.ts, touched
+  by no other track. O touches projectLinks.ts/checks.ts/comments.ts, touched by no other
+  track. None of L/M/N/O touch processPullRequest.ts — that's reserved for Wave V2 below,
+  same reasoning as v1's H track being a dedicated glue-file wave.
+
+Wave V2 (sequential integration, one agent — mirrors v1's H-track role)
+  - src/lib/pipeline/processPullRequest.ts: wire in resolveSpecRefs (L, ahead of
+    diffOpenApiSchemas) and the links-plural fan-out loop (O). M and N need no
+    pipeline.ts edit — M's diffSchemas.ts change is transparent to its caller; N's queue
+    is entirely upstream of the pipeline (route.ts / process/route.ts call it, not the
+    reverse).
+
+Wave V3 (verification loop — mirrors v1's audit loop)
+  - New/expanded fixtures: multi-file spec ($ref), renamed-field spec, multi-link
+    project_links row, queue-mode route test (publish call mocked; one manual live
+    QStash-sandbox run before ship, logged in IMPLEMENTATION_LOG.md same as v1's live
+    verification).
+  - spec-auditor pass against the new specs once L-O's docs/specs/*.md exist.
+```
+
+## 6. Track → spec → agent assignment (once specs are authored)
+
+| Track | Spec file (to author) | Agent | Parallel with |
+|---|---|---|---|
+| V0 | `docs/specs/V0-v2-types-env-migrations.md` | `module-builder` | — (must finish first) |
+| L | `docs/specs/L-ref-resolution.md` | `module-builder` | M N O |
+| M | `docs/specs/M-rename-detection.md` | `module-builder` | L N O |
+| N | `docs/specs/N-retry-queue.md` | `module-builder` | L M O |
+| O | `docs/specs/O-multi-frontend.md` | `module-builder` | L M N |
+| V2 | (folded into H-pipeline.md as an amendment, not a new spec) | `module-builder` | — |
+| V3 | `docs/specs/J-verification.md` amendment | `module-builder` then `spec-auditor` | — |
+
+## 7. Frozen-type diff (the one deliberate re-open)
+
+```diff
+ export interface BreakingChange {
+   field: string;
+   parent: string;
+   change: ChangeKind;
+   original?: string;
+   updated?: string;
++  renamedTo?: string; // Track M — set only on an unambiguous same-type rename match
+ }
+```
+
+No other type in `src/types/` changes. `ProjectLink`, `PipelineInput`, `UsageMatch`,
+`Verdict`, `ScanReport`, `CheckConclusion` are all untouched — multi-frontend fan-out
+(Track O) is a query-arity and pipeline-loop concern, not a type-shape concern.
+
+## 8. Proposed Law amendments (NOT yet adopted — pending sign-off, then fold into CLAUDE.md)
+
+- **Law 5 extension:** "If a queue is configured (`QSTASH_TOKEN` set via
+  `loadQueueEnv()`), the webhook route claims the delivery idempotently, then publishes to
+  the queue and acks 202 only after the publish succeeds; `process/route.ts` (invoked by
+  the queue) does the actual pipeline work. If no queue is configured, `after()` is used
+  exactly as in v1." Law 5's core ("ack fast, never await the pipeline before responding")
+  is preserved either way.
+- **New Law (delivery idempotency):** "Every webhook delivery is claimed exactly once via
+  `claimDelivery()` (keyed by `X-GitHub-Delivery`) before any pipeline work starts, in
+  both queue and `after()` modes."
+- **Law 13 addendum:** no new npm dependency for Track N — QStash is integrated via raw
+  `fetch()` + hand-rolled HMAC, consistent with the existing approved-dependency
+  minimalism.
+- Laws 1, 2, 6, 7, 8, 9, 10, 11, 14, 15, 16 need no amendment — every design above was
+  fit to them, not the reverse.
+
+## 9. Risk register (v2 additions)
+
+| Risk | Mitigation | Track |
+|---|---|---|
+| SSRF via attacker-controlled `$ref` URL | URL refs never resolved — file refs only, same App-installation trust boundary | L |
+| Circular/deep `$ref` chains hang the pipeline | Visited-set + `MAX_REF_RESOLUTION_DEPTH` cap, degrades to opaque label | L |
+| Wrong rename guess misleads the PR author | Unambiguous-match-only heuristic; ambiguity leaves `renamedTo` unset | M |
+| Queue retry or GitHub's own webhook retry double-runs the pipeline | `processed_deliveries` idempotency claim before any work starts | N |
+| Second HMAC trust boundary (QStash) reuses the GitHub secret by mistake | Separate signing-key pair, never `GITHUB_WEBHOOK_SECRET` | N |
+| Existing deployments without `QSTASH_TOKEN` break | Queue is opt-in; `after()` path is untouched when unconfigured | N |
+| N-link fan-out overwhelms GitHub API rate limits | Independent `MAX_FRONTEND_LINKS_CONCURRENCY` cap (default 3), documented alongside `SCAN_CONCURRENCY` | O |
+| Multi-link comments/check-runs collide | Per-link comment marker + check-run name suffix, only when `links.length > 1` | O |
+| Migration numbering collision (Tracks N and O both add a migration in parallel) | Orchestrator fixes final numbering at merge time, not agents | N, O |
+
+## 10. Explicitly out of scope for v2
+
+- URL-based `$ref` resolution (§1 — rejected, not deferred, on SSRF grounds).
+- Aggregating multi-frontend results into a single check run/comment (§4 — the
+  independent-verdict design is the default; flagged **OPEN** if this assumption is wrong).
+- Any change to how a *single*-frontend, *single*-spec-file deployment behaves — v2 is
+  additive capability, not a rewrite; the entire wave structure in §5 is built around
+  that constraint.
+- Non-OpenAPI contract formats, non-TypeScript/JS frontend scanning, GitLab/Bitbucket
+  support — untouched, not part of this backlog.

@@ -8,7 +8,8 @@ stepping on each other.
 **Status:** v1 complete — every track (W0, A–J) plus the Wave 4 dashboard (Spec K, see §7)
 is implemented, with 180 tests green and `typecheck`/`lint` clean on `main`. This document
 remains the build plan/reference; see `docs/IMPLEMENTATION_LOG.md` for the change-by-change
-record of what actually shipped.
+record of what actually shipped. v2 planning (the four §7 backlog items) is underway in
+`docs/PLAN_V2.md`.
 
 ## 1. System summary
 
