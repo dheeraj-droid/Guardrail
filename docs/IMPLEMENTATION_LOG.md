@@ -169,3 +169,20 @@ open" above are now all resolved.
 - Outcome: merged `--no-ff`, branch deleted, pushed to `origin/main`. Verified
   `npm run typecheck` (clean), `npm run lint` (0 problems), `npm test` (24 files / 180
   tests passing) before pushing.
+
+**Docs: confirm live end-to-end run, drop the stale "not yet run" caveat** (`docs/confirm-live-e2e-run`, merged to `main`)
+- The prior entry's README caveat ("not yet run end-to-end against a live deployment on a
+  real PR") turned out to be false: the live deployment (`guardrail-coral.vercel.app`),
+  GitHub App (`guardrail-app`), and Supabase project were already wired up, and PR #1 on
+  `dheeraj-droid/guardrail-demo` (opened 2026-07-08) already had a real `Guardrail Contract
+  Check` run — verified directly via `gh api .../check-runs`, not from docs.
+- Re-verified live, not just from history: pushed an empty commit to that PR's branch to
+  trigger a fresh `synchronize` webhook. New check run completed 2026-07-09T19:45:53Z,
+  concluded `failure`, correct schema diff (`age` TYPE_MUTATED, `phoneNumber` DELETED),
+  correct 4 frontend references across 3 files including the destructuring-alias case
+  (`{ phoneNumber: phone }` matched on `phoneNumber`, per Law 6), and the PR comment was
+  updated in place (comment count stayed at 1) rather than duplicated.
+- `README.md`: replaced the "not yet run end-to-end" caveat with a statement of what was
+  actually verified live, linking the deployment and demo repo.
+- Outcome: merged `--no-ff`, branch deleted, pushed to `origin/main`. Verified
+  `npm run typecheck` (clean) and `npm run lint` (0 problems) before pushing.

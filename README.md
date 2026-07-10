@@ -8,8 +8,11 @@
 **Status:** v1 complete — core pipeline plus the optional public onboarding
 [dashboard](#dashboard) (specs A–K and W0, all build waves through Wave 4). 180 tests
 green across 24 files, `npm run typecheck` and `npm run lint` clean, CI green on `main`.
-Not yet run end-to-end against a live GitHub App / Supabase / Vercel deployment on a real
-PR — see [Deployment](#deployment).
+Verified end-to-end against a live deployment ([guardrail-coral.vercel.app](https://guardrail-coral.vercel.app/))
+with a real GitHub App and Supabase project: a PR deleting `phoneNumber` and mutating
+`age` on [guardrail-demo](https://github.com/dheeraj-droid/guardrail-demo) produced a
+correct `failure` check run with exact `file:line` locations, including through a
+destructuring alias — see [Deployment](#deployment).
 
 ## Why
 
