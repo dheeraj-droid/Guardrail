@@ -12,11 +12,14 @@ listed as out-of-scope-for-v1, now scoped in for v2:
 4. **Multi-frontend fan-out** (`project_links.backend_repo_id` is `UNIQUE` today — one
    frontend per backend, monorepo aside).
 
-**Status:** planning only. No `docs/specs/L-*.md` .. `O-*.md` files exist yet — writing
-those (at the fidelity of `docs/specs/A-verify-signature.md` etc.) is the next step,
-using this document as the design brief. Nothing in `src/` changes until specs exist and
-are reviewed. Several decisions below are flagged **OPEN** — pending explicit sign-off
-before a spec is written against them.
+**Status:** specs authored — `docs/specs/V0-v2-types-env-migrations.md`,
+`L-ref-resolution.md`, `M-rename-detection.md`, `N-retry-queue.md`,
+`O-multi-frontend.md`, `P-pipeline-v2-integration.md` all exist at v1 spec fidelity, on
+branch `feat/v2`. Track O's verdict-shape decision (§4) is resolved: one aggregated
+check run/comment per PR, not one per frontend — this moved most of Track O's original
+scope into the new Track P (Wave V2 pipeline integration) so it wouldn't collide with
+Track M's parallel `formatComment.ts` edit. Implementation waves (V0 → V1 → V2 → V3) are
+in progress; see `docs/IMPLEMENTATION_LOG.md` for wave-by-wave outcomes as they land.
 
 ## 0. Ground rules carried over from v1
 
