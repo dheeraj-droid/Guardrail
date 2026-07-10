@@ -116,6 +116,8 @@ export function fakeEnv(overrides: Partial<Env> = {}): Env {
     supabaseServiceRoleKey: 'service-role-key',
     scanConcurrency: 8,
     maxScanFiles: 2000,
+    maxRefResolutionDepth: 5,
+    maxFrontendLinksConcurrency: 3,
     ...overrides,
   };
 }

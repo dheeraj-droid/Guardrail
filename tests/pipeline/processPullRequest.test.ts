@@ -67,6 +67,8 @@ function makeEnv(): Env {
     supabaseServiceRoleKey: 'stub-service-role-key',
     scanConcurrency: 8,
     maxScanFiles: 2000,
+    maxRefResolutionDepth: 5,
+    maxFrontendLinksConcurrency: 3,
   };
 }
 

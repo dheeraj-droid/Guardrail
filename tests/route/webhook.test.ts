@@ -62,6 +62,8 @@ function fakeEnv(): Env {
     supabaseServiceRoleKey: 'service-role-key',
     scanConcurrency: 8,
     maxScanFiles: 2000,
+    maxRefResolutionDepth: 5,
+    maxFrontendLinksConcurrency: 3,
   };
 }
 
