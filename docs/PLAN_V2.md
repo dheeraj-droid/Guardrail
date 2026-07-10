@@ -256,37 +256,51 @@ one check run, one comment, one frontend scan.
     documented together, not tuned in isolation.
   - The common case (exactly one link) produces byte-identical behavior to v1 — this is
     the regression safety net: today's e2e fixture becomes an N=1 case of the new loop.
-- Check-run naming: `createInProgressCheckRun` / `concludeCheckRun` gain an optional
-  `nameSuffix?: string` param (additive, defaults to today's unsuffixed
-  `CHECK_NAME`). `processLinkForPr` passes a suffix (`` `(${frontendOwner}/${frontendRepo})` ``)
-  **only when `links.length > 1`** — so single-link deployments see no name change at
-  all.
-- Comment scoping: `upsertPrComment`'s marker-matching (`COMMENT_MARKER`) must become
-  per-link when `links.length > 1`, or N frontends' comments will find and overwrite each
-  other. `formatComment.ts`/`comments.ts` gain an optional marker suffix
-  (`<!-- guardrail-report:${link.id} -->`) used only in the multi-link case — same
-  single-link-unchanged principle as check-run naming.
+### Decision: one aggregated verdict per PR — **RESOLVED**
 
-### Decision: independent pass/fail per frontend, not one aggregated verdict — **OPEN,
-recommend but flag for sign-off**
+Confirmed by the user: multi-frontend fan-out posts **one** check run and **one** comment
+per backend PR, not one per frontend. Consequence: `checks.ts`/`comments.ts` need **no**
+per-link naming or marker changes at all — `CHECK_NAME` and `COMMENT_MARKER` stay exactly
+as they are today. All the aggregation logic instead lives in a new pure module and a
+`processPullRequest.ts` restructure, both owned by Track P (§5a) rather than Track O
+itself, to avoid Track O and Track M both editing `formatComment.ts` in the same
+parallel wave (see §5's file-disjointness note).
 
-Two frontends linked to one backend PR can have genuinely different outcomes — frontend A
-doesn't reference the deleted field (should pass), frontend B does (should block). A
-single aggregated check run would force an artificial one-size-fits-all verdict and lose
-that signal (either both pass, hiding B's real breakage, or both fail, blocking A's
-unrelated merge for no reason). Recommendation: keep them fully independent (separate
-named check runs + separate comments, per above), accepting more check-run/comment
-volume on high-fan-out PRs as the correct tradeoff. This is the default assumption
-threaded through the rest of Track O's design above — flag before a spec is written in
-case the actual product intent is "one verdict per PR regardless of frontend count."
+- **Track O's scope narrows to exactly one file:** `src/lib/db/projectLinks.ts` gains
+  `getProjectLinksByBackendRepoId` (plural). Nothing else changes in Wave V1.
+- **Aggregation (Track P, Wave V2):** each link is evaluated independently (own spec
+  fetch/parse/diff/scan — `openapi_file_path` can differ per row, so this cannot be
+  hoisted out to a single shared diff) into a `LinkOutcome`:
+  ```ts
+  type LinkOutcome =
+    | { kind: 'evaluated'; verdict: Verdict; changes: BreakingChange[]; scan: ScanReport;
+        frontendRepoFullName: string; openapiFilePath: string }
+    | { kind: 'no-spec' } | { kind: 'spec-added' } | { kind: 'spec-removed' }
+    | { kind: 'spec-unparseable'; message: string }
+    | { kind: 'frontend-unreachable' } | { kind: 'internal-error'; message: string };
+  ```
+  mirroring exactly the six outcomes `processPullRequest.ts` already handles per-link
+  today (each already resolves to a conclusion today: `spec-added`→`success`; the other
+  five non-`evaluated` cases→`neutral`). New pure `src/lib/report/aggregateVerdicts.ts`:
+  `aggregateVerdicts(outcomes): Verdict` — **worst-wins** conclusion priority
+  (`failure` > `neutral` > `success`) across all links' resolved conclusions, so one
+  link's internal hiccup can never hide a real `failure` found in another link, and can
+  never itself escalate past `neutral` (Law 10 still holds per-link). `shouldComment` is
+  true if any link's is true. `formatComment.ts` gains a multi-link composer that
+  concatenates each `evaluated` link's existing per-link section (extracted from today's
+  `formatPrComment` body, marker/footer emitted once for the whole comment, not once per
+  link).
+- Single-link case is byte-identical: with exactly one link, `aggregateVerdicts` reduces
+  to the existing `computeVerdict` output and the multi-link comment composer reduces to
+  today's single-section body — same acceptance-fixture regression safety net as before.
 
 ### Acceptance sketch
 
-- Two links, one backend repo: frontend A doesn't reference the changed field (passes),
-  frontend B does (fails) → two independently-concluded, distinctly-named check runs on
-  the same PR, each with its own comment.
-- One link (today's common case): identical check-run name, identical comment marker,
-  identical conclusion logic to what's on `main` right now — today's e2e fixture passes
+- Two links, one backend repo: frontend A doesn't reference the changed field, frontend B
+  does → **one** check run concludes `failure` (worst-wins), **one** comment shows both
+  frontends' sections (A's "no references" note, B's broken-reference table).
+- One link (today's common case): identical check-run conclusion/title/summary and
+  identical comment body to what's on `main` right now — today's e2e fixture passes
   unmodified.
 
 ## 5. Wave structure
@@ -309,21 +323,25 @@ Wave V1 (4 parallel tracks — verified file-disjoint below, so genuinely parall
   M   src/lib/diff/detectRenames.ts (new); diffSchemas.ts, formatComment.ts   (edits)
   N   src/lib/queue/qstash.ts, src/app/api/webhook/process/route.ts,
       src/lib/db/deliveries.ts (new); src/app/api/webhook/github/route.ts    (edit)
-  O   src/lib/db/projectLinks.ts, src/lib/github/checks.ts,
-      src/lib/github/comments.ts                                             (edits, additive)
+  O   src/lib/db/projectLinks.ts                                             (edit, additive)
 
   File-disjointness check: L touches no existing file. M touches diffSchemas.ts +
   formatComment.ts, neither touched by L/N/O. N touches webhook/github/route.ts, touched
-  by no other track. O touches projectLinks.ts/checks.ts/comments.ts, touched by no other
-  track. None of L/M/N/O touch processPullRequest.ts — that's reserved for Wave V2 below,
-  same reasoning as v1's H track being a dedicated glue-file wave.
+  by no other track. O touches only projectLinks.ts (aggregation verdict — §4 — moved the
+  rest of Track O's original scope to Track P specifically so it wouldn't collide with
+  M's formatComment.ts edit in the same parallel wave). None of L/M/N/O touch
+  processPullRequest.ts — that's reserved for Wave V2 below, same reasoning as v1's H
+  track being a dedicated glue-file wave.
 
-Wave V2 (sequential integration, one agent — mirrors v1's H-track role)
+Wave V2 (sequential integration, one agent — mirrors v1's H-track role — Track P)
   - src/lib/pipeline/processPullRequest.ts: wire in resolveSpecRefs (L, ahead of
-    diffOpenApiSchemas) and the links-plural fan-out loop (O). M and N need no
-    pipeline.ts edit — M's diffSchemas.ts change is transparent to its caller; N's queue
-    is entirely upstream of the pipeline (route.ts / process/route.ts call it, not the
-    reverse).
+    diffOpenApiSchemas) and restructure into a per-link evaluate + aggregate loop over
+    the plural links (O's `getProjectLinksByBackendRepoId`).
+  - New src/lib/report/aggregateVerdicts.ts (worst-wins conclusion priority, §4).
+  - formatComment.ts gains a multi-link composer (extends, does not conflict with, M's
+    already-merged rename-messaging edit — this wave runs strictly after Wave V1 lands).
+  - N needs no pipeline.ts edit — its queue is entirely upstream of the pipeline
+    (route.ts / process/route.ts call it, not the reverse).
 
 Wave V3 (verification loop — mirrors v1's audit loop)
   - New/expanded fixtures: multi-file spec ($ref), renamed-field spec, multi-link
@@ -342,7 +360,7 @@ Wave V3 (verification loop — mirrors v1's audit loop)
 | M | `docs/specs/M-rename-detection.md` | `module-builder` | L N O |
 | N | `docs/specs/N-retry-queue.md` | `module-builder` | L M O |
 | O | `docs/specs/O-multi-frontend.md` | `module-builder` | L M N |
-| V2 | (folded into H-pipeline.md as an amendment, not a new spec) | `module-builder` | — |
+| P | `docs/specs/P-pipeline-v2-integration.md` | `module-builder` | — (Wave V2, runs after V1) |
 | V3 | `docs/specs/J-verification.md` amendment | `module-builder` then `spec-auditor` | — |
 
 ## 7. Frozen-type diff (the one deliberate re-open)
@@ -389,15 +407,15 @@ No other type in `src/types/` changes. `ProjectLink`, `PipelineInput`, `UsageMat
 | Queue retry or GitHub's own webhook retry double-runs the pipeline | `processed_deliveries` idempotency claim before any work starts | N |
 | Second HMAC trust boundary (QStash) reuses the GitHub secret by mistake | Separate signing-key pair, never `GITHUB_WEBHOOK_SECRET` | N |
 | Existing deployments without `QSTASH_TOKEN` break | Queue is opt-in; `after()` path is untouched when unconfigured | N |
-| N-link fan-out overwhelms GitHub API rate limits | Independent `MAX_FRONTEND_LINKS_CONCURRENCY` cap (default 3), documented alongside `SCAN_CONCURRENCY` | O |
-| Multi-link comments/check-runs collide | Per-link comment marker + check-run name suffix, only when `links.length > 1` | O |
+| N-link fan-out overwhelms GitHub API rate limits | Independent `MAX_FRONTEND_LINKS_CONCURRENCY` cap (default 3), documented alongside `SCAN_CONCURRENCY` | P |
+| One link's internal error masks or is masked by another link's real failure | `aggregateVerdicts` worst-wins priority (`failure` > `neutral` > `success`) — a real failure always dominates a sibling error, and no per-link error can escalate past `neutral` | P |
 | Migration numbering collision (Tracks N and O both add a migration in parallel) | Orchestrator fixes final numbering at merge time, not agents | N, O |
 
 ## 10. Explicitly out of scope for v2
 
 - URL-based `$ref` resolution (§1 — rejected, not deferred, on SSRF grounds).
-- Aggregating multi-frontend results into a single check run/comment (§4 — the
-  independent-verdict design is the default; flagged **OPEN** if this assumption is wrong).
+- Per-frontend independent check runs/comments (§4 — resolved in favor of one aggregated
+  verdict per PR).
 - Any change to how a *single*-frontend, *single*-spec-file deployment behaves — v2 is
   additive capability, not a rewrite; the entire wave structure in §5 is built around
   that constraint.
