@@ -154,6 +154,20 @@ describe('formatPrComment', () => {
     // Raw (unescaped) pipe from the snippet must not appear.
     expect(out).not.toContain('a.age | 0');
   });
+
+  it('11. DELETED with renamedTo renders a rename hint; DELETED without it stays plain', () => {
+    const out = formatPrComment({
+      changes: [
+        { field: 'age', parent: 'User', change: 'DELETED', renamedTo: 'ageYears' },
+        { field: 'phoneNumber', parent: 'User', change: 'DELETED' },
+      ],
+      scan: scan([]),
+      frontendRepoFullName: 'acme/web',
+      openapiFilePath: 'openapi.json',
+    });
+    expect(out).toContain('| `age` | `User` | DELETED (looks renamed to `ageYears`) | — | — |');
+    expect(out).toContain('| `phoneNumber` | `User` | DELETED | — | — |');
+  });
 });
 
 describe('truncateForChecks', () => {

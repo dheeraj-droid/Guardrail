@@ -42,7 +42,11 @@ function escapePipes(text: string): string {
 function schemaChangeRow(change: BreakingChange): string {
   const oldType = change.change === 'TYPE_MUTATED' ? `\`${change.original ?? ''}\`` : '—';
   const newType = change.change === 'TYPE_MUTATED' ? `\`${change.updated ?? ''}\`` : '—';
-  return `| \`${change.field}\` | \`${change.parent}\` | ${change.change} | ${oldType} | ${newType} |`;
+  const changeLabel =
+    change.change === 'DELETED' && change.renamedTo
+      ? `DELETED (looks renamed to \`${change.renamedTo}\`)`
+      : change.change;
+  return `| \`${change.field}\` | \`${change.parent}\` | ${changeLabel} | ${oldType} | ${newType} |`;
 }
 
 /** One bullet line for a broken frontend reference within its file group. */

@@ -40,6 +40,11 @@ describe('diffOpenApiSchemas', () => {
         field: 'phoneNumber',
         parent: 'User',
         change: 'DELETED',
+        // v1 -> v2 also adds User.middleName (string) — same parent, same type, but
+        // NOT name-related (no shared camelCase word, no substring relation), so
+        // annotateRenames' name-relation gate correctly does NOT flag this as a
+        // rename. (This pair is exactly the real false-positive that gate exists to
+        // prevent — see tests/diff/detectRenames.test.ts test 7.)
       },
       {
         field: 'street',
@@ -148,6 +153,28 @@ describe('diffOpenApiSchemas', () => {
       'Alpha.y',
       'Zeta.a',
       'Zeta.b',
+    ]);
+  });
+
+  it('annotates an unambiguous rename with renamedTo (wiring, Spec M)', () => {
+    const oldSpec: Record<string, unknown> = {
+      components: {
+        schemas: {
+          User: { type: 'object', properties: { age: { type: 'integer' } } },
+        },
+      },
+    };
+    const newSpec: Record<string, unknown> = {
+      components: {
+        schemas: {
+          User: { type: 'object', properties: { ageYears: { type: 'integer' } } },
+        },
+      },
+    };
+
+    const changes = diffOpenApiSchemas(oldSpec, newSpec);
+    expect(changes).toEqual([
+      { field: 'age', parent: 'User', change: 'DELETED', renamedTo: 'ageYears' },
     ]);
   });
 });

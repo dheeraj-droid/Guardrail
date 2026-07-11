@@ -46,7 +46,22 @@ Algorithm (exact — this is the whole spec of this file):
 3. For each `change` in `changes` where `change.change === 'DELETED'`: look up
    `oldMap.get(change.parent + '.' + change.field)` for its `type`. Filter the
    candidate pool to entries where `candidate.parent === change.parent` AND
-   `candidate.type === thatType` AND the candidate key is not in `claimed`.
+   `candidate.type === thatType` AND the candidate key is not in `claimed` AND
+   `namesLikelyRelated(change.field, candidate.field)` is true.
+
+   **`namesLikelyRelated` (added after implementation caught a real false positive —
+   see below):** two names are "likely related" if one case-insensitively contains the
+   other, OR they share at least one camelCase word (split `phoneNumber` into
+   `["phone", "number"]`, `ageYears` into `["age", "years"]`, etc.). Without this gate,
+   `parent`+`type` alone is too weak a signal: the shared `tests/fixtures/openapi/`
+   `user-v1.json`→`user-v2.json` fixture deletes `User.phoneNumber` (string) and
+   separately adds `User.middleName` (string) — an unrelated delete-and-add pair that
+   happen to share a parent and type. Before this gate existed, that was the ONLY
+   same-type candidate, so the algorithm called it "unambiguous" and produced a
+   materially misleading hint (`` DELETED (looks renamed to `middleName`) ``) on a
+   field that has real, unrelated frontend references in that same fixture. `age` →
+   `ageYears` still matches (shared word "age"); `email` → `emailAddress` still matches
+   (substring containment). This is a real signal, not a cosmetic one — implement it.
 4. Exactly one match → set `renamedTo` to that candidate's `field` name, add its key to
    `claimed`, and move to the next `change`. Zero matches or two-or-more matches →
    leave `renamedTo` unset (ambiguity is not guessed at — a wrong hint is worse than no
