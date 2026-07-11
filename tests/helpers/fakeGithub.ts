@@ -97,12 +97,27 @@ export function hasCall(request: ReturnType<typeof vi.fn>, route: string): boole
   return request.mock.calls.some(([r]) => r === route);
 }
 
-// ---- fake db (Track D test shape: chainable from().select().eq().maybeSingle()) --------
+// ---- fake db (Track D test shape: chainable from().select().eq()) ----------------------
+//
+// Spec P (Wave V2, docs/PLAN_V2.md §4-§5): processPullRequest.ts now calls the PLURAL
+// getProjectLinksByBackendRepoId, which does `.eq(...)` and awaits the query builder
+// directly (no `.maybeSingle()`). Supabase's real query builders are PromiseLike
+// (thenable) objects, so this fake mirrors that shape via a `then` method rather than
+// returning a plain (non-thenable) object from `.eq()`. `makeDb`'s own exported
+// signature is unchanged (`row: ProjectLink | null`) — this is a pure internal fix so
+// tests/integration/pipeline.e2e.test.ts (the only consumer of this helper) keeps
+// passing against the new plural lookup; no other track's test file uses this helper.
 
 export function makeDb(row: ProjectLink | null): SupabaseClient {
+  const rows = row ? [row] : [];
   const builder = {
     select: () => builder,
     eq: () => builder,
+    then: (
+      resolve: (value: { data: ProjectLink[]; error: null }) => void,
+    ) => resolve({ data: rows, error: null }),
+    // Kept for completeness — no longer exercised by processPullRequest.ts, which now
+    // uses the plural lookup exclusively, but harmless to leave in place.
     maybeSingle: () => Promise.resolve({ data: row, error: null }),
   };
   const db = { from: () => builder };

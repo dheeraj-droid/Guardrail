@@ -7,6 +7,29 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Env } from '@/config/env';
 import type { PipelineInput } from '@/types/github';
 import type { ProjectLink } from '@/types/db';
+
+// Spec P (Wave V2) — resolveSpecRefs (Track L) is wired directly into evaluateLink, not
+// injected via PipelineDeps, so acceptance test 2 ("resolveSpecRefs is invoked for both
+// old and new spec, for every link") observes it via a call-through wrap: the REAL
+// implementation still runs (byte-identical behavior for every existing fixture, which
+// has no external $refs — see tests/fixtures/openapi/user-v{1,2}.json), only the calls
+// are additionally recorded. Same `vi.hoisted` + `vi.mock(..., importOriginal)` shape
+// already used by tests/dashboard/*.test.ts.
+const mocks = vi.hoisted(() => ({
+  resolveSpecRefsCalls: [] as unknown[][],
+}));
+
+vi.mock('@/lib/github/fetchExternalRefs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/github/fetchExternalRefs')>();
+  return {
+    ...actual,
+    resolveSpecRefs: async (...args: Parameters<typeof actual.resolveSpecRefs>) => {
+      mocks.resolveSpecRefsCalls.push(args);
+      return actual.resolveSpecRefs(...args);
+    },
+  };
+});
+
 import { processPullRequest, type PipelineDeps } from '@/lib/pipeline/processPullRequest';
 import { COMMENT_MARKER } from '@/lib/github/comments';
 
@@ -44,13 +67,24 @@ function makeLink(overrides: Partial<ProjectLink> = {}): ProjectLink {
   };
 }
 
-// ---- fake db (Track D test shape: chainable from().select().eq().maybeSingle()) --
+// ---- fake db (Track D test shape: chainable from().select().eq()) -----------------
+//
+// Spec P (Wave V2): processPullRequest.ts now calls the PLURAL
+// getProjectLinksByBackendRepoId, which does `.eq(...)` and awaits the query builder
+// directly (no `.maybeSingle()`). Supabase's real query builders are PromiseLike
+// (thenable) objects, so this fake mirrors that shape via a `then` method rather than
+// returning a plain Promise from `.eq()`.
 
-function makeDb(row: ProjectLink | null): SupabaseClient {
+function makeDb(links: ProjectLink[]): SupabaseClient {
   const builder = {
     select: () => builder,
     eq: () => builder,
-    maybeSingle: () => Promise.resolve({ data: row, error: null }),
+    then: (
+      resolve: (value: { data: ProjectLink[]; error: null }) => void,
+    ) => resolve({ data: links, error: null }),
+    // Kept for completeness — no longer exercised by processPullRequest.ts, which now
+    // uses the plural lookup exclusively, but harmless to leave in place.
+    maybeSingle: () => Promise.resolve({ data: links[0] ?? null, error: null }),
   };
   const db = { from: () => builder };
   return db as unknown as SupabaseClient;
@@ -84,6 +118,9 @@ const REPO_BY_ID_ROUTE = 'GET /repositories/{id}';
 const COMMENTS_LIST_ROUTE = 'GET /repos/{owner}/{repo}/issues/{issue_number}/comments';
 const COMMENTS_CREATE_ROUTE = 'POST /repos/{owner}/{repo}/issues/{issue_number}/comments';
 
+// Handlers may return a plain value OR a Promise (Spec P concurrency test needs real
+// async delays to observe overlap) — buildOctokit awaits the result either way, so
+// every pre-existing synchronous handler keeps working unmodified.
 type RouteHandler = (params: Record<string, unknown>) => unknown;
 
 function b64(text: string): string {
@@ -104,7 +141,7 @@ function buildOctokit(routes: Record<string, RouteHandler>): {
     if (!handler) {
       throw new Error(`unhandled test route: ${route} ${JSON.stringify(params)}`);
     }
-    return { data: handler(params) };
+    return { data: await handler(params) };
   });
   const octokit = { request } as unknown as Octokit;
   return { octokit, request };
@@ -143,14 +180,19 @@ function blobRoute(contents: Record<string, string>): RouteHandler {
 
 // ---- deps builder -------------------------------------------------------------------
 
-function makeDeps(opts: { link: ProjectLink | null; octokit: Octokit }): {
+function makeDeps(opts: {
+  link?: ProjectLink | null;
+  links?: ProjectLink[];
+  octokit: Octokit;
+}): {
   deps: PipelineDeps;
   getInstallationClientMock: ReturnType<typeof vi.fn>;
 } {
+  const links: ProjectLink[] = opts.links ?? (opts.link ? [opts.link] : []);
   const getInstallationClientMock = vi.fn(async (_env: Env, _installationId: number) => opts.octokit);
   const deps: PipelineDeps = {
     env: makeEnv(),
-    db: makeDb(opts.link),
+    db: makeDb(links),
     getInstallationClient: getInstallationClientMock,
   };
   return { deps, getInstallationClientMock };
@@ -171,9 +213,16 @@ function hasCall(request: ReturnType<typeof vi.fn>, route: string): boolean {
   return request.mock.calls.some(([r]) => r === route);
 }
 
+/** All calls to `route`, params only (used by multi-link tests to count occurrences). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function findAllCalls(request: ReturnType<typeof vi.fn>, route: string): any[] {
+  return request.mock.calls.filter(([r]) => r === route).map(([, params]) => params);
+}
+
 beforeEach(() => {
   vi.spyOn(console, 'log').mockImplementation(() => {});
   vi.spyOn(console, 'error').mockImplementation(() => {});
+  mocks.resolveSpecRefsCalls.length = 0;
 });
 
 afterEach(() => {
@@ -419,5 +468,158 @@ describe('processPullRequest', () => {
     const params = findCall(request, CHECK_RUN_CONCLUDE_ROUTE);
     expect(params.conclusion).toBe('neutral');
     expect(params.output.title).toBe('OpenAPI spec was removed');
+  });
+
+  // ---- Spec P (Wave V2) — multi-link / ref-resolution cases -------------------------
+
+  it('13. two links, one clean and one broken -> ONE check run concludes failure; ONE comment with both frontends', async () => {
+    const linkA = makeLink({ id: 'link-a', frontend_repo_id: BACKEND_REPO_ID, frontend_src_directory: 'src/appA' });
+    const linkB = makeLink({ id: 'link-b', frontend_repo_id: 777, frontend_src_directory: 'src' });
+
+    const { octokit, request } = buildOctokit({
+      ...checkRunRoutes(71),
+      [CONTENTS_ROUTE]: contentsRoute({ [INPUT.baseRef]: V1_SPEC, [INPUT.headSha]: V2_SPEC }),
+      [REPO_BY_ID_ROUTE]: () => ({
+        owner: { login: 'frontend-owner2' },
+        name: 'frontend-repo2',
+        default_branch: 'main',
+      }),
+      [TREE_ROUTE]: (params) => {
+        if (params.owner === INPUT.backendOwner && params.repo === INPUT.backendRepo) {
+          return { truncated: false, tree: [{ path: 'src/appA/a.ts', sha: 'sha-a', type: 'blob' }] };
+        }
+        return { truncated: false, tree: [{ path: 'src/b.ts', sha: 'sha-b', type: 'blob' }] };
+      },
+      [BLOB_ROUTE]: blobRoute({
+        'sha-a': 'export const unrelated = 1;\n',
+        'sha-b': 'return u.phoneNumber;\n',
+      }),
+      [COMMENTS_LIST_ROUTE]: () => [],
+      [COMMENTS_CREATE_ROUTE]: () => ({}),
+    });
+    const { deps } = makeDeps({ links: [linkA, linkB], octokit });
+
+    await processPullRequest(deps, INPUT);
+
+    // ONE check run created and concluded — never one per link.
+    expect(findAllCalls(request, CHECK_RUN_CREATE_ROUTE).length).toBe(1);
+    const concludeCalls = findAllCalls(request, CHECK_RUN_CONCLUDE_ROUTE);
+    expect(concludeCalls.length).toBe(1);
+    expect(concludeCalls[0].conclusion).toBe('failure');
+
+    // ONE comment, representing both frontends.
+    const commentCreateCalls = findAllCalls(request, COMMENTS_CREATE_ROUTE);
+    expect(commentCreateCalls.length).toBe(1);
+    const body = commentCreateCalls[0].body as string;
+    expect(body).toContain(COMMENT_MARKER);
+    expect(body).toContain(`${INPUT.backendOwner}/${INPUT.backendRepo}`);
+    expect(body).toContain('frontend-owner2/frontend-repo2');
+  });
+
+  it('14. resolveSpecRefs is invoked for both old and new spec, for every link', async () => {
+    const linkA = makeLink({ id: 'link-a' });
+    const linkB = makeLink({ id: 'link-b' });
+    const { octokit } = buildOctokit({
+      ...checkRunRoutes(101),
+      [CONTENTS_ROUTE]: contentsRoute({ [INPUT.baseRef]: V1_SPEC, [INPUT.headSha]: V1_SPEC }),
+    });
+    const { deps } = makeDeps({ links: [linkA, linkB], octokit });
+
+    await processPullRequest(deps, INPUT);
+
+    // 2 links * (old spec + new spec) = 4 calls.
+    expect(mocks.resolveSpecRefsCalls.length).toBe(4);
+    const refsUsed = mocks.resolveSpecRefsCalls.map(
+      (args) => (args[1] as { ref: string }).ref,
+    );
+    expect(refsUsed.filter((r) => r === INPUT.baseRef).length).toBe(2);
+    expect(refsUsed.filter((r) => r === INPUT.headSha).length).toBe(2);
+  });
+
+  it('15. one link throws inside evaluateLink while another evaluates cleanly -> aggregate neutral; clean link still reflected in the comment', async () => {
+    const linkGood = makeLink({ id: 'link-good', frontend_repo_id: BACKEND_REPO_ID, frontend_src_directory: 'src/appA' });
+    const linkBad = makeLink({ id: 'link-bad', frontend_repo_id: 888, frontend_src_directory: 'src' });
+
+    const { octokit, request } = buildOctokit({
+      ...checkRunRoutes(91),
+      [CONTENTS_ROUTE]: contentsRoute({ [INPUT.baseRef]: V1_SPEC, [INPUT.headSha]: V2_SPEC }),
+      [REPO_BY_ID_ROUTE]: (params) => {
+        if (params.id === 888) throw new Error('frontend repo lookup exploded');
+        return { owner: { login: 'x' }, name: 'y', default_branch: 'main' };
+      },
+      [TREE_ROUTE]: () => ({ truncated: false, tree: [{ path: 'src/appA/a.ts', sha: 'sha-a', type: 'blob' }] }),
+      [BLOB_ROUTE]: blobRoute({ 'sha-a': 'export const unrelated = 1;\n' }),
+      [COMMENTS_LIST_ROUTE]: () => [],
+      [COMMENTS_CREATE_ROUTE]: () => ({}),
+    });
+    const { deps } = makeDeps({ links: [linkGood, linkBad], octokit });
+
+    await expect(processPullRequest(deps, INPUT)).resolves.toBeUndefined();
+
+    const concludeParams = findCall(request, CHECK_RUN_CONCLUDE_ROUTE);
+    expect(concludeParams.conclusion).toBe('neutral');
+
+    const commentParams = findCall(request, COMMENTS_CREATE_ROUTE);
+    expect(commentParams.body).toContain('safe to merge');
+  });
+
+  it('16. MAX_FRONTEND_LINKS_CONCURRENCY=1 respected: no two evaluateLink invocations overlap', async () => {
+    const links = [1, 2, 3].map((n) =>
+      makeLink({ id: `link-${n}`, frontend_repo_id: BACKEND_REPO_ID }),
+    );
+
+    let active = 0;
+    let maxActive = 0;
+    const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+    const { octokit } = buildOctokit({
+      ...checkRunRoutes(81),
+      [CONTENTS_ROUTE]: async (params) => {
+        active++;
+        maxActive = Math.max(maxActive, active);
+        await sleep(5);
+        active--;
+        const text = params.ref === INPUT.baseRef || params.ref === INPUT.headSha ? V1_SPEC : undefined;
+        if (text === undefined) throw httpError(404);
+        return { content: b64(text), encoding: 'base64' };
+      },
+    });
+
+    const { deps } = makeDeps({ links, octokit });
+    deps.env.maxFrontendLinksConcurrency = 1;
+
+    await processPullRequest(deps, INPUT);
+
+    expect(maxActive).toBe(1);
+  });
+
+  it('17. MAX_FRONTEND_LINKS_CONCURRENCY=3 (default) actually overlaps -> proves the knob does something', async () => {
+    const links = [1, 2, 3].map((n) =>
+      makeLink({ id: `link-${n}`, frontend_repo_id: BACKEND_REPO_ID }),
+    );
+
+    let active = 0;
+    let maxActive = 0;
+    const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+    const { octokit } = buildOctokit({
+      ...checkRunRoutes(82),
+      [CONTENTS_ROUTE]: async (params) => {
+        active++;
+        maxActive = Math.max(maxActive, active);
+        await sleep(5);
+        active--;
+        const text = params.ref === INPUT.baseRef || params.ref === INPUT.headSha ? V1_SPEC : undefined;
+        if (text === undefined) throw httpError(404);
+        return { content: b64(text), encoding: 'base64' };
+      },
+    });
+
+    const { deps } = makeDeps({ links, octokit });
+    // deps.env.maxFrontendLinksConcurrency defaults to 3 (makeEnv()).
+
+    await processPullRequest(deps, INPUT);
+
+    expect(maxActive).toBeGreaterThan(1);
   });
 });
