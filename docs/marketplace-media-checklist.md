@@ -24,14 +24,24 @@ so keep the mark centered with padding.
 - [ ] **No text** in the logo itself — the listing shows the name beside it.
 - [ ] **Test small:** downscale to 40×40 and confirm it's still legible.
 
-## 2. Feature card background color
+## 2. Feature card background image + badge color
 
-GitHub builds the top "hero" card from your logo on a solid background you pick.
+GitHub's listing has **two** separate background settings — don't confuse them:
 
-- [ ] Choose a **background hex** with strong contrast against the logo.
-- [ ] Match the product/site accent (the deployment is at
-      `guardrail-coral.vercel.app` — a coral/red or a deep slate both work).
-- [ ] Verify **logo-on-background contrast** ≥ 3:1 so the mark doesn't wash out.
+**Badge background** — a *color* (not an image). GitHub's guidance: choose a badge
+background color that matches the background/transparency of your logo.
+- [ ] Pick a color that reads with the coral logo — a deep slate works.
+
+**Feature card** — an uploaded **background image**, exactly **965×482 px**. GitHub
+overlays your logo and the app name on top; you pick the app-name text color. Their
+tip: "use a pattern or texture in your background image to give your card a visual
+identity."
+- [ ] Use the ready-made background:
+      [guardrail-feature-card-bg.svg](assets/guardrail-feature-card-bg.svg) —
+      export it to a **965×482 PNG**.
+- [ ] Set the **app-name text color to white** (`#FFFFFF`) — the card is dark slate.
+- [ ] Leave the center clear; the coral logo + name land there. (The provided image
+      already keeps its texture to the edges.)
 
 ## 3. Screenshots (the part that sells it)
 
@@ -103,7 +113,8 @@ sign-in needed to see them. Capture in a browser at ~1280 px width, then crop.
 ## Final pre-upload gate
 
 - [ ] Logo exported at 512×512 PNG, transparent, legible at 40 px.
-- [ ] Background hex chosen and contrast-checked.
+- [ ] Badge background color chosen (deep slate) to match the logo.
+- [ ] Feature card exported to 965×482 PNG; app-name text color set to white.
 - [ ] 3–5 screenshots, all identical size, ≥1200 px wide, no chrome, nothing
       sensitive on screen.
 - [ ] Screenshot #1 is the failing check with file:line — the strongest frame.
