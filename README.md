@@ -1,4 +1,9 @@
-# Guardrail
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/guardrail-wordmark-dark.svg">
+    <img src="docs/assets/guardrail-wordmark.svg" alt="Guardrail" height="72">
+  </picture>
+</p>
 
 > Automated API contract enforcement across repositories. Guardrail intercepts backend
 > PRs that alter an OpenAPI spec, diffs the contract for deleted/type-mutated fields,
