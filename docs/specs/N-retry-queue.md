@@ -1,14 +1,18 @@
 # Spec N — Durable Retry Queue (opt-in, beyond `after()`)
 
 **Wave:** V1 | **Agent:** module-builder | **Depends on:** V0
-**Files produced:** `src/lib/queue/qstash.ts`, `src/lib/db/deliveries.ts`,
-`src/app/api/webhook/process/route.ts`, `src/app/api/webhook/process/handler.ts`,
-`src/app/api/webhook/github/handler.ts` (edit), `src/lib/github/checks.ts` (edit —
-idempotent check-run creation, see §3 below), `src/config/env.ts` was already edited
-by V0 — do not re-edit it here beyond what V0 already added,
-`tests/queue/qstash.test.ts`, `tests/db/deliveries.test.ts`,
-`tests/route/process.test.ts`, `tests/route/webhook.test.ts` (edit — new cases only),
+**Files produced:** `src/lib/queue/qstash.ts`, `src/app/api/webhook/process/route.ts`,
+`src/app/api/webhook/process/handler.ts`, `src/app/api/webhook/github/handler.ts`
+(edit), `src/lib/github/checks.ts` (edit — idempotent check-run creation, the SOLE
+idempotency mechanism in this track, see below), `src/config/env.ts` was already
+edited by V0 — do not re-edit it here beyond what V0 already added,
+`tests/queue/qstash.test.ts`, `tests/route/process.test.ts`,
+`tests/route/webhook.test.ts` (edit — new cases only),
 `tests/github/adapters.test.ts` (edit — new idempotency cases for `checks.ts`)
+
+**No `processed_deliveries` table, no `src/lib/db/deliveries.ts`, no delivery-id
+claim anywhere in this track — see below for why a first draft that had these was
+wrong, not just simplified.**
 
 ## Purpose
 
@@ -38,19 +42,33 @@ runs, and `createInProgressCheckRun` (`checks.ts`, unchanged today) unconditiona
 `POST`s a fresh check run every time it's called — so this produces two check runs on
 the same commit, not one.
 
-**Two independent, complementary fixes, both required:**
-1. **`claimDelivery`/`processed_deliveries` (Files 2 & 4, unchanged from the original
-   design) still matters** — it protects against GitHub itself redelivering the same
-   webhook to *ingress* (assuming GitHub reuses the delivery GUID on its own automatic
-   retries, which is the documented but not iron-clad case). Keep it.
-2. **`createInProgressCheckRun` must become idempotent (File 3a below) — this is the
-   fix that actually closes the QStash-retry gap**, because it protects at the point
-   where a duplicate WOULD be created, regardless of which delivery mechanism caused the
-   redundant invocation or whether any delivery-id was preserved end-to-end. This also
-   correctly preserves the crash-recovery case retries exist for in the first place: if
-   invocation #1 dies BEFORE ever creating a check run, a retry still creates one fresh
-   and completes normally — idempotency only suppresses a duplicate when one is already
-   in flight or already exists, never blocks a genuine first attempt.
+**The fix — one mechanism, not two: `createInProgressCheckRun` becomes idempotent (File
+5 below).** It protects at the point where a duplicate WOULD be created, regardless of
+which delivery mechanism caused the redundant invocation. It also correctly preserves
+the crash-recovery case retries exist for in the first place: if invocation #1 dies
+BEFORE ever creating a check run, a retry still creates one fresh and completes
+normally — idempotency only suppresses a duplicate when one is already in flight or
+already exists, never blocks a genuine first attempt.
+
+**A `processed_deliveries` claim table was tried first and REJECTED — read why, because
+the failure mode is not obvious and easy to reintroduce by accident.** The idea was:
+claim the delivery id at ingress (`webhook/github/handler.ts`), before either the
+queue-publish or `after()` branch, so a duplicate delivery short-circuits before any
+work starts. This is a real bug, not a simplification opportunity: **claiming BEFORE the
+work is durably handed off means the claim can survive even when the work doesn't.**
+Trace the failure: (1) delivery `D` arrives, claim succeeds; (2) `publish(...)` throws
+(network blip) — the handler deliberately returns `502` specifically so GitHub retries
+delivery; (3) GitHub redelivers `D`; (4) the claim check sees `D` already claimed and
+returns a "duplicate delivery" no-op — **no publish is ever attempted, and the PR is
+never evaluated.** The exact retry mechanism the design was supposed to enable is the
+one thing it silently defeats. The `after()` fallback has the identical shape: claim
+commits, then the process dies mid-`after()` with no completed work, and any GitHub
+redelivery is swallowed the same way. There is no safe point to release the claim on
+either path — the queue path could theoretically release it on a caught publish
+failure, but the `after()` path cannot run any cleanup after the process has already
+died. `createInProgressCheckRun`'s idempotency has no equivalent failure mode (see
+above: an attempt that created nothing lets a retry proceed cleanly), which is exactly
+why it — alone — is the mechanism this track ships with.
 
 Accept one residual, deliberately-not-solved edge case: if invocation #1 truly
 completes and concludes the check run, and a late/spurious retry fires anyway,
@@ -58,7 +76,10 @@ completes and concludes the check run, and a late/spurious retry fires anyway,
 that rare case produces a second, harmless, redundant *completed* run rather than data
 loss or a stuck in-progress run. Solving that fully would need a locking/lease mechanism
 this system's actual risk profile does not justify (Guardrail is a merge-blocking bot,
-not a payments system) — do not build one.
+not a payments system) — do not build one. Similarly, dropping a benign (non-error)
+duplicate delivery now costs one full redundant pipeline evaluation instead of a cheap
+DB-row check — accepted; correctness (never silently dropping a PR evaluation) matters
+more here than that one avoided round-trip of API calls.
 
 ## File 1 — `src/lib/queue/qstash.ts` (IO)
 
@@ -97,7 +118,11 @@ export function verifyQStashSignature(opts: {
 ```
 
 Implementation:
-- `publishPipelineJob`: `POST https://qstash.upstash.io/v2/publish/${encodeURIComponent(processUrl)}`
+- `publishPipelineJob`: `POST https://qstash.upstash.io/v2/publish/${processUrl}` — the
+  destination goes RAW after `/v2/publish/`, NOT `encodeURIComponent`-ed (confirmed
+  against Upstash's published curl example, `.../v2/publish/https://example.com`;
+  percent-encoding it would corrupt the destination against the real API — this was a
+  real bug caught and fixed before any code shipped, not a style preference)
   with header `Authorization: Bearer ${queueEnv.qstashToken}` and `Content-Type:
   application/json`, body `JSON.stringify(input)`. `!response.ok` → throw
   `new Error(\`QStash publish failed: ${response.status}\`)`.
@@ -144,30 +169,7 @@ Implementation:
      failure at any step → `false`, never throw (mirrors `verifyGithubSignature`'s
      total-function contract exactly).
 
-## File 2 — `src/lib/db/deliveries.ts`
-
-```ts
-import type { SupabaseClient } from '@supabase/supabase-js';
-
-/**
- * Atomically claim a webhook delivery id. Returns true iff THIS call claimed it
- * (first time seen); false if it was already claimed (duplicate delivery — caller
- * must no-op). Never throws on a duplicate — only on an actual DB error.
- */
-export async function claimDelivery(
-  db: SupabaseClient,
-  deliveryId: string,
-): Promise<boolean>;
-```
-
-Implementation: `db.from('processed_deliveries').insert({ delivery_id: deliveryId })`.
-Supabase surfaces a unique-violation as `error.code === '23505'` — that specific code
-means "already claimed," so return `false` (not an error). Any OTHER `error` truthy
-value throws `new Error('processed_deliveries claim failed: ' + error.message)`,
-mirroring `projectLinks.ts`'s existing error-message convention. No error → return
-`true`.
-
-## File 3 — `src/app/api/webhook/process/route.ts` + `handler.ts`
+## File 2 — `src/app/api/webhook/process/route.ts` + `handler.ts`
 
 Same route/handler split as `webhook/github` (Next.js App Router route files may only
 export HTTP method handlers + route-segment config — see the WHY comment already in
@@ -209,38 +211,16 @@ Control flow:
 6. If `pipeline(...)` somehow rejects anyway (contract violation, but defend the HTTP
    layer regardless), catch it and return a non-2xx so QStash retries delivery.
 
-**`claimDelivery` is NOT re-checked here** — it runs once, in `webhook/github/handler.ts`,
-before either the queue-publish or `after()` branch (File 4 below), and only protects
-against GitHub redelivering to *ingress*. This route's real protection against a QStash
-redelivery landing here a second time is `createInProgressCheckRun`'s idempotency (File
-5, below) — inside `pipeline(deps, input)` itself, not something this route needs to
-implement directly. Do not add a second delivery-claim check in this file; the point of
-File 5's fix is precisely that this route does NOT need to know it's being retried.
+**No delivery-claim check of any kind exists in this file** — this route's ONLY
+protection against a QStash redelivery landing here a second time for the same commit
+is `createInProgressCheckRun`'s idempotency (File 4, below), reached inside
+`pipeline(deps, input)` itself. Do not add one; see the Purpose section for why an
+ingress-side claim is actively wrong, not merely redundant.
 
-## File 4 — `src/app/api/webhook/github/handler.ts` (edit)
+## File 3 — `src/app/api/webhook/github/handler.ts` (edit)
 
-Insert two things into the existing control flow, both AFTER step 6 (installation-id
-check) and BEFORE step 7 (build `PipelineInput` — unchanged) in the current file:
-
-**6a. Claim the delivery (both modes):**
-```ts
-const deliveryId = req.headers.get('x-github-delivery');
-if (deliveryId) {
-  const claimed = await claimDelivery(deps.db, deliveryId);
-  if (!claimed) {
-    return Response.json({ queued: false, reason: 'duplicate delivery' }, { status: 200 });
-  }
-}
-```
-A missing `x-github-delivery` header (should never happen for a real GitHub webhook,
-but the route must not 500 on it) skips the claim rather than failing closed — same
-fail-open spirit as the rest of this file. `deps.db` requires `buildDeps()` (or an
-override) to be resolved BEFORE this point now, not lazily inside the deferred
-callback — this is the one structural change to the file's ordering; the deferred
-`pipeline(...)` call in step 8 keeps using the already-resolved `deps` instead of
-calling `buildDeps()` again inside the callback.
-
-**Step 8 replacement — branch on queue configuration:**
+Only one change to the existing control flow: branch on queue configuration, replacing
+the unconditional `after()` call at the end (step 8 in the current file) with:
 ```ts
 const queueEnv = overrides?.queueEnv ?? tryLoadQueueEnv();
 if (queueEnv) {
@@ -253,8 +233,10 @@ if (queueEnv) {
   return Response.json({ queued: true }, { status: 202 });
 }
 
-// Fallback: no queue configured — today's v1 behavior, byte-for-byte.
-defer(() => pipeline(deps, input));
+// Fallback: no queue configured — today's v1 behavior, byte-for-byte. `deps` resolved
+// lazily inside the callback, exactly as pre-Track-N (there is no earlier awaited step
+// that needs it resolved eagerly — no delivery claim, see Purpose).
+defer(() => pipeline(overrides?.deps ?? buildDeps(), input));
 return Response.json({ queued: true }, { status: 202 });
 ```
 - `tryLoadQueueEnv()`: a small module-private wrapper around `isQueueConfigured()` +
@@ -271,7 +253,7 @@ return Response.json({ queued: true }, { status: 202 });
   retry mechanism covers it — acking `202` into a job that never got enqueued would be
   the exact "acked but not actually queued" gap this track exists to close.
 
-## File 5 — `src/lib/github/checks.ts` (edit — idempotent check-run creation)
+## File 4 — `src/lib/github/checks.ts` (edit — idempotent check-run creation)
 
 **This is the fix that actually closes the QStash-retry double-run gap** (see Purpose).
 `createInProgressCheckRun`'s exported signature does NOT change — every existing caller
@@ -285,10 +267,10 @@ export async function createInProgressCheckRun(
 ): Promise<number> {
   const { owner, repo, headSha } = params;
 
-  // Idempotency (Track N): reuse an existing NOT-YET-COMPLETED run with our name on
-  // this exact repo+sha instead of creating a duplicate. A queue retry (or a GitHub
-  // redelivery that slipped past the ingress delivery-claim) invoking this a second
-  // time for the same commit must not produce a second check run.
+  // Idempotency (Track N — the SOLE mechanism, see Purpose): reuse an existing
+  // NOT-YET-COMPLETED run with our name on this exact repo+sha instead of creating a
+  // duplicate. A queue retry or a GitHub redelivery invoking this a second time for the
+  // same commit must not produce a second check run.
   const { data: existing } = await octokit.request(
     'GET /repos/{owner}/{repo}/commits/{ref}/check-runs',
     { owner, repo, ref: headSha, check_name: CHECK_NAME },
@@ -341,12 +323,6 @@ the actual verification path, not a stubbed one:
     §, File 1) — not a test case, a documentation note so a future reviewer sees the
     scope cut was deliberate.
 
-`deliveries.test.ts` (mock Supabase client chain, no network):
-1. First claim of a fresh `delivery_id` → `true`.
-2. Second claim of the same `delivery_id` (mock returns the unique-violation error
-   shape) → `false`, no throw.
-3. An unrelated DB error → throws containing the message.
-
 `process.test.ts` (mirror `webhook.test.ts`'s `sign()`-helper pattern, using
 `verifyQStashSignature`'s real algorithm to construct valid test signatures — do not
 stub the crypto):
@@ -363,11 +339,6 @@ tests from Spec I must still pass unmodified):
 2. `QSTASH_TOKEN` configured (inject `queueEnv` override) → `publish` called with the
    built `PipelineInput`, `defer` NOT called, response is `202`.
 3. `publish` override configured to reject → response is `502`; `defer` not called.
-4. Same `x-github-delivery` header value sent twice (both with a queue configured and
-   with `after()` fallback) → second call returns `200 { reason: 'duplicate delivery' }`,
-   neither `publish` nor `defer`/pipeline is invoked the second time.
-5. Missing `x-github-delivery` header → claim step is skipped, request proceeds exactly
-   as before this track existed (regression safety for any test payload that omits it).
 
 `adapters.test.ts` — new cases for `createInProgressCheckRun` (existing cases for this
 file, including the un-touched `concludeCheckRun` tests, must all still pass unmodified):
@@ -376,7 +347,7 @@ file, including the un-touched `concludeCheckRun` tests, must all still pass unm
 2. An existing run for repo+sha+name with `status: 'in_progress'` → NO `POST` call;
    returns the existing run's id.
 3. An existing run for repo+sha+name with `status: 'completed'` → `POST` IS called (a
-   completed run is not "in flight" — see File 5's documented residual-edge-case note);
+   completed run is not "in flight" — see File 4's documented residual-edge-case note);
    returns the new run's id.
 4. Multiple existing runs, one `in_progress` and one older `completed` → the
    `in_progress` one's id is reused (find the first non-completed match, do not assume
@@ -404,7 +375,12 @@ separate from typecheck/test. The signature-verification algorithm in File 1 was
 derived from reading QStash's own SDK source, not tested against a live QStash
 request — the live round-trip is also this algorithm's first real-world test; if it
 fails, treat a signature-verification mismatch as the first hypothesis, not a
-transport/network issue.
+transport/network issue. Specifically check: (a) the `nbf` claim — File 1's algorithm
+rejects any token without a numeric `nbf`; if real QStash tokens sometimes omit it,
+valid callbacks will be wrongly rejected as `401`, and the check needs loosening to
+"absent nbf = no constraint" rather than "absent nbf = reject"; (b) the publish URL's
+destination is passed raw per Upstash's documented curl example, not
+`encodeURIComponent`-ed — confirm the real API accepts it as implemented.
 
 ## Forbidden
 
@@ -417,12 +393,15 @@ transport/network issue.
 - `await`-ing `processPullRequest` inside `webhook/github/handler.ts` before responding,
   in EITHER branch (Law 5 still applies — the queue branch awaits only the fast
   `publish` call, never the pipeline itself).
-- Treating `claimDelivery`/`processed_deliveries` (Files 2 & 4) as sufficient
-  idempotency protection on its own — File 5's `createInProgressCheckRun` change is not
-  optional or a "nice to have," it is the fix for the double-run vector this track's
-  Purpose section actually identifies. Do not implement Files 1-4 and skip File 5.
+- Re-adding a `processed_deliveries` table or any other delivery-id claim, at ingress or
+  anywhere else — this was tried, and rejected for a specific, documented reason (see
+  Purpose): claiming before work is durably handed off has no safe release path on
+  either failure mode, so it silently swallows the exact retries it exists to protect.
+  `createInProgressCheckRun`'s idempotency (File 4) is the sole mechanism — not one of
+  two, not a belt-and-suspenders addition to it.
 - Adding a locking/lease mechanism to fully close the rare late-retry-after-completion
-  edge case File 5 documents as an accepted residual risk — that is over-engineering for
+  edge case File 4 documents as an accepted residual risk — that is over-engineering for
   this system, not a gap to close.
-- Skipping the delivery-claim step for the `after()` fallback path — idempotency
-  protection must cover both branches, not just the new queue path.
+- `encodeURIComponent`-ing the destination URL in `publishPipelineJob` — QStash's publish
+  API takes it raw (confirmed against Upstash's own published curl example); this was a
+  real bug caught before shipping, not a style choice — do not "fix" it back.

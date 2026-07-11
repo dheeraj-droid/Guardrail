@@ -15,6 +15,7 @@ import type { PipelineDeps } from '@/lib/pipeline/processPullRequest';
 export const CONTENTS_ROUTE = 'GET /repos/{owner}/{repo}/contents/{path}';
 export const TREE_ROUTE = 'GET /repos/{owner}/{repo}/git/trees/{tree_sha}';
 export const BLOB_ROUTE = 'GET /repos/{owner}/{repo}/git/blobs/{file_sha}';
+export const CHECK_RUN_LOOKUP_ROUTE = 'GET /repos/{owner}/{repo}/commits/{ref}/check-runs';
 export const CHECK_RUN_CREATE_ROUTE = 'POST /repos/{owner}/{repo}/check-runs';
 export const CHECK_RUN_CONCLUDE_ROUTE = 'PATCH /repos/{owner}/{repo}/check-runs/{check_run_id}';
 export const REPO_BY_ID_ROUTE = 'GET /repositories/{id}';
@@ -51,6 +52,9 @@ export function buildOctokit(routes: Record<string, RouteHandler>): {
 
 export function checkRunRoutes(checkRunId: number): Record<string, RouteHandler> {
   return {
+    // Track N idempotency lookup (src/lib/github/checks.ts) — no existing runs, so
+    // createInProgressCheckRun always falls through to the POST below.
+    [CHECK_RUN_LOOKUP_ROUTE]: () => ({ check_runs: [] }),
     [CHECK_RUN_CREATE_ROUTE]: () => ({ id: checkRunId }),
     [CHECK_RUN_CONCLUDE_ROUTE]: () => ({}),
   };

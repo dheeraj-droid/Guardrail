@@ -77,6 +77,7 @@ function makeEnv(): Env {
 const CONTENTS_ROUTE = 'GET /repos/{owner}/{repo}/contents/{path}';
 const TREE_ROUTE = 'GET /repos/{owner}/{repo}/git/trees/{tree_sha}';
 const BLOB_ROUTE = 'GET /repos/{owner}/{repo}/git/blobs/{file_sha}';
+const CHECK_RUN_LOOKUP_ROUTE = 'GET /repos/{owner}/{repo}/commits/{ref}/check-runs';
 const CHECK_RUN_CREATE_ROUTE = 'POST /repos/{owner}/{repo}/check-runs';
 const CHECK_RUN_CONCLUDE_ROUTE = 'PATCH /repos/{owner}/{repo}/check-runs/{check_run_id}';
 const REPO_BY_ID_ROUTE = 'GET /repositories/{id}';
@@ -111,6 +112,10 @@ function buildOctokit(routes: Record<string, RouteHandler>): {
 
 function checkRunRoutes(checkRunId: number): Record<string, RouteHandler> {
   return {
+    // Track N idempotency lookup (src/lib/github/checks.ts) — no existing runs, so
+    // createInProgressCheckRun always falls through to the POST below, exactly as
+    // every one of these fixtures already assumes.
+    [CHECK_RUN_LOOKUP_ROUTE]: () => ({ check_runs: [] }),
     [CHECK_RUN_CREATE_ROUTE]: () => ({ id: checkRunId }),
     [CHECK_RUN_CONCLUDE_ROUTE]: () => ({}),
   };

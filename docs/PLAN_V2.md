@@ -182,37 +182,37 @@ sees success and won't redeliver even if the deferred work later dies silently.
   before acking (fast — a single HTTP round trip — and if publish fails, respond with a
   5xx so GitHub's own webhook-delivery retry covers it, rather than acking 202 into a
   job that never got enqueued). If not configured: today's `after()` path, unchanged.
-- **Idempotency (the sharp edge a queue introduces) — REVISED after adversarial review
-  caught a real gap in the first draft:** the original design claimed a delivery-id
-  claim at ingress (`webhook/github/route.ts`) was sufficient. It is not: **QStash's own
-  retries land on the `process` route directly, never back through ingress**, so an
-  ingress-only claim never sees them. Two `process` invocations for the same commit,
-  and the GitHub Checks API does **not** dedupe check runs with the same name/SHA — a
-  second run creates a second, conflicting check run. Two independent, complementary
-  fixes, both required (`docs/specs/N-retry-queue.md`'s Purpose section has the full
-  reasoning):
-  1. New migration `0004_processed_deliveries.sql` (unchanged from the first draft):
-     ```sql
-     CREATE TABLE processed_deliveries (
-         delivery_id TEXT PRIMARY KEY,
-         processed_at TIMESTAMPTZ NOT NULL DEFAULT now()
-     );
-     ```
-     `src/lib/db/deliveries.ts`'s `claimDelivery(db, deliveryId): Promise<boolean>`,
-     called once at ingress before either the queue-publish or `after()` branch — this
-     still matters, but only for GitHub redelivering to *ingress*, not for QStash
-     redelivering to `process`.
-  2. **The fix that actually closes the QStash-retry gap:** `createInProgressCheckRun`
-     (`checks.ts`) becomes idempotent — before `POST`ing a new check run, it looks up
-     existing (non-`completed`) runs for that repo+sha+name and reuses one if found.
-     This protects at the point a duplicate would actually be created, regardless of
-     delivery mechanism or whether a delivery-id survived end-to-end, and — unlike
-     moving the claim into the `process` route — does not break the crash-recovery case
-     retries exist for: a retry that arrives before any check run was created still
-     creates one fresh. **This means `checks.ts` is no longer untouched by v2** —
-     Track O's aggregated-verdict decision (§4) still holds (one check run per PR, not
-     per frontend), but Track N now edits this file too, for an unrelated reason
-     (idempotency, not aggregation).
+- **Idempotency (the sharp edge a queue introduces) — TWICE-REVISED after two rounds of
+  adversarial review, both catching real gaps:**
+  - **Round 1** found: the original design claimed a delivery-id at ingress
+    (`webhook/github/route.ts`) was sufficient. It is not — **QStash's own retries land
+    on the `process` route directly, never back through ingress** — so an ingress-only
+    claim never sees them, and the GitHub Checks API does **not** dedupe check runs with
+    the same name/SHA. Fix proposed: keep the ingress claim AND add idempotent
+    check-run creation.
+  - **Round 2 found the ingress claim itself was actively harmful, not merely
+    insufficient — REMOVED entirely, not kept as a belt-and-suspenders layer.** Claiming
+    a delivery id BEFORE the work it guards is durably handed off means the claim can
+    outlive the work: if `publish()` throws, the handler returns `502` specifically so
+    GitHub retries — but the retry hits the same claim and gets silently dropped as a
+    "duplicate," so the PR is never evaluated. The `after()` fallback has the identical
+    shape (claim commits, process dies mid-`after()`, any GitHub redelivery is
+    swallowed the same way), and there is no code path that can safely release the
+    claim on either failure mode. **The design now rests on exactly one mechanism:**
+    `createInProgressCheckRun` (`checks.ts`) becomes idempotent — before `POST`ing a new
+    check run, it looks up existing (non-`completed`) runs for that repo+sha+name and
+    reuses one if found. This has no equivalent failure mode: an attempt that created
+    nothing lets a retry proceed and create fresh; one that created an in-flight run
+    gets it reused. No `processed_deliveries` table, no `src/lib/db/deliveries.ts`, no
+    migration `0004` — full reasoning in `docs/specs/N-retry-queue.md`'s Purpose
+    section, which documents the rejected design so it isn't reintroduced by accident.
+  - **This means `checks.ts` is no longer untouched by v2** — Track O's
+    aggregated-verdict decision (§4) still holds (one check run per PR, not per
+    frontend), but Track N edits this file for an unrelated reason (idempotency, not
+    aggregation).
+  - A benign (non-error) duplicate delivery now costs one full redundant pipeline
+    evaluation instead of a cheap DB-row check — accepted; never silently dropping a PR
+    evaluation matters more here than that avoided round-trip.
 
 ### Acceptance sketch
 
@@ -220,8 +220,9 @@ sees success and won't redeliver even if the deferred work later dies silently.
   test: existing e2e fixture unchanged).
 - `QSTASH_TOKEN` set → route publishes and acks only after publish succeeds; `process`
   route processes the job and concludes the check run.
-- Same `X-GitHub-Delivery` header delivered twice (either path) → second delivery is a
-  no-op, no duplicate check run.
+- Same delivery redelivered twice, via either path → `createInProgressCheckRun` reuses
+  the existing in-progress run rather than creating a duplicate; a redundant full
+  pipeline re-evaluation is the accepted cost, not a dropped PR.
 - One **manual** live verification against a real QStash sandbox before shipping (mirror
   the live-verification entry already in `IMPLEMENTATION_LOG.md` for v1 — unit/e2e tests
   mock the publish call; only a real run proves the callback round-trip).
@@ -237,10 +238,11 @@ one check run, one comment, one frontend scan.
 
 ### Design
 
-- Migration `0005_multi_frontend.sql` (numbered after Track N's `0004`; **the
-  orchestrator, not either track's agent, fixes final migration ordering at merge time —
-  same principle as Law 12's "orchestrator owns global gates," extended to migration
-  numbers since Tracks N and O are developed in parallel**):
+- Migration `0005_multi_frontend.sql` (the file is numbered `0005`, not `0004` — `0004`
+  was originally reserved for Track N's `processed_deliveries` table, which was later
+  removed entirely; §3 above has the full story. The gap is harmless — migration numbers
+  need to be unique and monotonic, not contiguous — so the file was left as `0005`
+  rather than renumbered after the fact):
   ```sql
   ALTER TABLE project_links DROP CONSTRAINT project_links_backend_repo_id_key;
   ALTER TABLE project_links
@@ -329,17 +331,16 @@ Wave V0 (sequential, one agent — mirrors W0's role)
   - src/types/contract.ts: add BreakingChange.renamedTo (Track M, the ONLY frozen-type edit)
   - src/config/env.ts: add loadQueueEnv() (Track N) and MAX_REF_RESOLUTION_DEPTH /
     MAX_FRONTEND_LINKS_CONCURRENCY to the existing loadEnv() (Tracks L, O)
-  - supabase/migrations/0004_processed_deliveries.sql (Track N)
-  - supabase/migrations/0005_multi_frontend.sql (Track O)
-    (orchestrator fixes final numbering — see §4)
+  - supabase/migrations/0005_multi_frontend.sql (Track O — Track N ended up with no
+    migration at all; see §4's note on the 0004 gap)
 
 Wave V1 (4 parallel tracks — verified file-disjoint below, so genuinely parallel-safe)
   L   src/lib/diff/resolveRefs.ts, src/lib/github/fetchExternalRefs.ts        (new files only)
   M   src/lib/diff/detectRenames.ts (new); diffSchemas.ts, formatComment.ts   (edits)
   N   src/lib/queue/qstash.ts, src/app/api/webhook/process/route.ts,
-      src/lib/db/deliveries.ts (new); src/app/api/webhook/github/route.ts,
-      src/lib/github/checks.ts (edit — idempotent createInProgressCheckRun, needed to
-      actually close the QStash-retry double-run gap, see §3's revised idempotency note)
+      src/app/api/webhook/github/route.ts,
+      src/lib/github/checks.ts (edit — idempotent createInProgressCheckRun, the SOLE
+      idempotency mechanism in this track — see §3's twice-revised idempotency note)
   O   src/lib/db/projectLinks.ts                                             (edit, additive)
 
   File-disjointness check: L touches no existing file. M touches diffSchemas.ts +
@@ -400,14 +401,18 @@ No other type in `src/types/` changes. `ProjectLink`, `PipelineInput`, `UsageMat
 ## 8. Proposed Law amendments (NOT yet adopted — pending sign-off, then fold into CLAUDE.md)
 
 - **Law 5 extension:** "If a queue is configured (`QSTASH_TOKEN` set via
-  `loadQueueEnv()`), the webhook route claims the delivery idempotently, then publishes to
-  the queue and acks 202 only after the publish succeeds; `process/route.ts` (invoked by
-  the queue) does the actual pipeline work. If no queue is configured, `after()` is used
-  exactly as in v1." Law 5's core ("ack fast, never await the pipeline before responding")
-  is preserved either way.
-- **New Law (delivery idempotency):** "Every webhook delivery is claimed exactly once via
-  `claimDelivery()` (keyed by `X-GitHub-Delivery`) before any pipeline work starts, in
-  both queue and `after()` modes."
+  `loadQueueEnv()`), the webhook route publishes to the queue and acks 202 only after the
+  publish succeeds; `process/route.ts` (invoked by the queue) does the actual pipeline
+  work. If no queue is configured, `after()` is used exactly as in v1." Law 5's core
+  ("ack fast, never await the pipeline before responding") is preserved either way.
+- **New Law (check-run idempotency, not delivery-claim idempotency):**
+  "`createInProgressCheckRun` must look up and reuse an existing non-completed run for
+  the same repo+sha+name before creating a new one — this is the ONLY idempotency
+  mechanism for redelivered/retried webhook and queue jobs. Do not add a delivery-id
+  claim table as a second layer: claiming before work is durably handed off has no safe
+  release path on a downstream failure, so it silently swallows the retries it would
+  exist to protect (docs/specs/N-retry-queue.md's Purpose section has the full incident
+  this law is written from)."
 - **Law 13 addendum:** no new npm dependency for Track N — QStash is integrated via raw
   `fetch()` + hand-rolled HMAC, consistent with the existing approved-dependency
   minimalism.
@@ -420,8 +425,8 @@ No other type in `src/types/` changes. `ProjectLink`, `PipelineInput`, `UsageMat
 |---|---|---|
 | SSRF via attacker-controlled `$ref` URL | URL refs never resolved — file refs only, same App-installation trust boundary | L |
 | Circular/deep `$ref` chains hang the pipeline | Visited-set + `MAX_REF_RESOLUTION_DEPTH` cap, degrades to opaque label | L |
-| Wrong rename guess misleads the PR author | Unambiguous-match-only heuristic; ambiguity leaves `renamedTo` unset | M |
-| Queue retry or GitHub's own webhook retry double-runs the pipeline | `processed_deliveries` idempotency claim before any work starts | N |
+| Wrong rename guess misleads the PR author | Unambiguous-match-only heuristic + `namesLikelyRelated` name-relation gate (added after the shared v1/v2 fixture exposed a real false positive: `phoneNumber`→`middleName`, same parent/type, no actual relation) | M |
+| Queue retry or GitHub's own webhook retry double-runs the pipeline | `createInProgressCheckRun` idempotency (reuse an existing non-completed run) — the SOLE mechanism, after a delivery-claim-table design was tried and rejected for silently swallowing the retries it existed to protect (§3) | N |
 | Second HMAC trust boundary (QStash) reuses the GitHub secret by mistake | Separate signing-key pair, never `GITHUB_WEBHOOK_SECRET` | N |
 | Existing deployments without `QSTASH_TOKEN` break | Queue is opt-in; `after()` path is untouched when unconfigured | N |
 | N-link fan-out overwhelms GitHub API rate limits | Independent `MAX_FRONTEND_LINKS_CONCURRENCY` cap (default 3), documented alongside `SCAN_CONCURRENCY` | P |
