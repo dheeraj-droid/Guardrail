@@ -1,0 +1,7 @@
+<svg width="470" height="150" viewBox="0 0 470 150" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Guardrail">
+  <g transform="translate(-37,-34) scale(0.42)">
+    <path d="M166 132 L346 132 Q366 132 366 152 L366 244 Q366 330 256 390 Q146 330 146 244 L146 152 Q146 132 166 132 Z" fill="#E9564A"/>
+    <path d="M208 250 L240 284 L316 200" fill="none" stroke="#FFFFFF" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="140" y="93" font-family="'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif" font-size="52" font-weight="600" letter-spacing="-1.2" fill="#1B1F24">Guardrail</text>
+</svg>
