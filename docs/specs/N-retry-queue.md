@@ -293,7 +293,12 @@ export async function createInProgressCheckRun(
     'GET /repos/{owner}/{repo}/commits/{ref}/check-runs',
     { owner, repo, ref: headSha, check_name: CHECK_NAME },
   );
-  const inFlight = existing.check_runs.find((run) => run.status !== 'completed');
+  // Filter on name explicitly, even though check_name already scopes the GET query —
+  // defensive against a mock/fake in tests not honoring the query param, and makes
+  // this function's own logic (not just the API call) what's actually being verified.
+  const inFlight = existing.check_runs.find(
+    (run) => run.status !== 'completed' && run.name === CHECK_NAME,
+  );
   if (inFlight) {
     return inFlight.id;
   }
