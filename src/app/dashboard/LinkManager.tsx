@@ -163,27 +163,49 @@ export function LinkManager({ login }: LinkManagerProps) {
   const adminRepos = repos.filter((r) => r.canAdminister);
 
   return (
-    <div className="dashboard">
-      <div className="dashboard-header">
-        <p>
-          Signed in as <strong>{login}</strong>
-        </p>
+    <div className="dashboard container">
+      <div className="dashboard-topbar">
+        <div className="dashboard-intro">
+          <span className="section-kicker">Dashboard</span>
+          <h1>Linked repositories</h1>
+          <p className="dashboard-signed-in">
+            Signed in as <strong>@{login}</strong>
+          </p>
+        </div>
         <button type="button" className="button" onClick={() => void handleLogout()}>
           Log out
         </button>
       </div>
 
-      {error && <p className="notice notice-error">{error}</p>}
+      {error && (
+        <p className="notice notice-error" role="alert">
+          {error}
+        </p>
+      )}
 
       <section className="card">
-        <h2>Linked repositories</h2>
+        <div className="card-head">
+          <h2>Your links</h2>
+          {!loading && links.length > 0 && (
+            <span className="count-badge">{links.length}</span>
+          )}
+        </div>
+
         {loading ? (
           <p className="loading-row">
             <span className="spinner" aria-hidden="true" />
-            Loading…
+            Loading your repositories…
           </p>
         ) : links.length === 0 ? (
-          <p className="empty-state">No links yet — create one below.</p>
+          <div className="empty-state">
+            <span className="empty-state-icon" aria-hidden="true">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <path d="M9 12a3 3 0 0 1 3-3h4a3 3 0 0 1 0 6h-1M15 12a3 3 0 0 1-3 3H8a3 3 0 0 1 0-6h1" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+              </svg>
+            </span>
+            <p className="empty-state-title">No links yet</p>
+            <p className="empty-state-hint">Pair a backend and frontend repo below to get started.</p>
+          </div>
         ) : (
           <div className="table-scroll">
             <table>
@@ -193,17 +215,21 @@ export function LinkManager({ login }: LinkManagerProps) {
                   <th>Frontend</th>
                   <th>Spec path</th>
                   <th>Src dir</th>
-                  <th />
+                  <th aria-label="Actions" />
                 </tr>
               </thead>
               <tbody>
                 {links.map((link) => (
                   <tr key={link.id}>
-                    <td>{repoFullName(link.backend_repo_id)}</td>
-                    <td>{repoFullName(link.frontend_repo_id)}</td>
-                    <td>{link.openapi_file_path}</td>
-                    <td>{link.frontend_src_directory}</td>
+                    <td className="cell-repo">{repoFullName(link.backend_repo_id)}</td>
+                    <td className="cell-repo">{repoFullName(link.frontend_repo_id)}</td>
                     <td>
+                      <code className="cell-code">{link.openapi_file_path}</code>
+                    </td>
+                    <td>
+                      <code className="cell-code">{link.frontend_src_directory}</code>
+                    </td>
+                    <td className="cell-action">
                       <button
                         type="button"
                         className="button button-danger"
@@ -221,21 +247,55 @@ export function LinkManager({ login }: LinkManagerProps) {
       </section>
 
       <section className="card">
-        <h2>Create or update a link</h2>
+        <div className="card-head">
+          <h2>Create or update a link</h2>
+        </div>
+        <p className="card-sub">
+          Guardrail watches the backend repo for OpenAPI changes and scans the frontend
+          for usages that would break.
+        </p>
+
         <form onSubmit={(e) => void handleSubmit(e)}>
-          <label>
-            Backend repository (admin/maintain only)
-            <select value={backendRepoId} onChange={(e) => handleBackendChange(e.target.value)} required>
-              <option value="" disabled>
-                Select a repository…
-              </option>
-              {adminRepos.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.fullName}
+          <div className="form-grid">
+            <label>
+              <span className="label-text">Backend repository</span>
+              <span className="label-hint">Admin or maintain access only</span>
+              <select
+                value={backendRepoId}
+                onChange={(e) => handleBackendChange(e.target.value)}
+                required
+              >
+                <option value="" disabled>
+                  Select a repository…
                 </option>
-              ))}
-            </select>
-          </label>
+                {adminRepos.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.fullName}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              <span className="label-text">Frontend repository</span>
+              <span className="label-hint">Where Guardrail scans for usages</span>
+              <select
+                value={monorepo ? backendRepoId : frontendRepoId}
+                onChange={(e) => setFrontendRepoId(e.target.value)}
+                disabled={monorepo}
+                required
+              >
+                <option value="" disabled>
+                  Select a repository…
+                </option>
+                {repos.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.fullName}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
 
           <label className="checkbox-label">
             <input
@@ -243,51 +303,40 @@ export function LinkManager({ login }: LinkManagerProps) {
               checked={monorepo}
               onChange={(e) => handleMonorepoToggle(e.target.checked)}
             />
-            Monorepo (same repo)
+            <span>
+              Monorepo — backend and frontend live in the same repository
+            </span>
           </label>
 
-          <label>
-            Frontend repository
-            <select
-              value={monorepo ? backendRepoId : frontendRepoId}
-              onChange={(e) => setFrontendRepoId(e.target.value)}
-              disabled={monorepo}
-              required
-            >
-              <option value="" disabled>
-                Select a repository…
-              </option>
-              {repos.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.fullName}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="form-grid">
+            <label>
+              <span className="label-text">OpenAPI spec path</span>
+              <span className="label-hint">Path in the backend repo</span>
+              <input
+                type="text"
+                placeholder="openapi.json"
+                value={openapiFilePath}
+                onChange={(e) => setOpenapiFilePath(e.target.value)}
+              />
+            </label>
 
-          <label>
-            OpenAPI spec path
-            <input
-              type="text"
-              placeholder="openapi.json"
-              value={openapiFilePath}
-              onChange={(e) => setOpenapiFilePath(e.target.value)}
-            />
-          </label>
+            <label>
+              <span className="label-text">Frontend source directory</span>
+              <span className="label-hint">Scan is scoped to this prefix</span>
+              <input
+                type="text"
+                placeholder="src"
+                value={frontendSrcDirectory}
+                onChange={(e) => setFrontendSrcDirectory(e.target.value)}
+              />
+            </label>
+          </div>
 
-          <label>
-            Frontend source directory
-            <input
-              type="text"
-              placeholder="src"
-              value={frontendSrcDirectory}
-              onChange={(e) => setFrontendSrcDirectory(e.target.value)}
-            />
-          </label>
-
-          <button type="submit" className="button button-primary" disabled={submitting}>
-            {submitting ? 'Saving…' : 'Save link'}
-          </button>
+          <div className="form-actions">
+            <button type="submit" className="button button-primary" disabled={submitting}>
+              {submitting ? 'Saving…' : 'Save link'}
+            </button>
+          </div>
         </form>
       </section>
     </div>

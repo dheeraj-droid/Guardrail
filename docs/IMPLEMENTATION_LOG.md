@@ -227,3 +227,33 @@ merged)
   `npm run lint` clean (had to `rm -rf .next` first — stale generated route types from
   the deleted scratch preview route broke typecheck). Pushed as a second commit on the
   same branch/PR.
+
+## 2026-07-11
+
+**Landing + dashboard visual overhaul** (`feat/premium-dashboard-ui`, on the existing PR #5)
+- Full frontend redesign to a Notion/Linear-grade dark aesthetic, building on the branch's
+  earlier premium pass. Touched only the four frontend files (no logic changed):
+  - `layout.tsx`: added `next/font/google` Inter (sans) + JetBrains Mono (mono) as CSS
+    vars — no new package.json dependency (next/font ships with `next`, Law 13 safe).
+    Reworked the header into a glass nav (How it works / Why Guardrail / GitHub) and added
+    a site footer. `metadata` title/description sharpened.
+  - `page.tsx` (landing): rebuilt into a two-column hero with a CSS/SVG "GitHub checks"
+    product mockup (PR #482 removing `User.phoneNumber`, build/tests pass, Guardrail check
+    fails with the two frontend usages + "Merging is blocked") — the money shot. Added
+    how-it-works (3 steps), a why-Guardrail feature grid (4 cards), and a CTA band.
+    Preserved verbatim: the `loadDashboardEnv()` try/catch, `configured`/`appSlug` gating,
+    and the `?error=auth` notice branch.
+  - `LinkManager.tsx`: markup/classes only — all state, handlers, CSRF header, monorepo
+    toggle, and fetch logic untouched. New two-column form grid, richer empty/loading
+    states, code-styled table cells, signed-in header.
+  - `globals.css`: rewritten design system — refined tokens, fluid type scale, fixed
+    ambient gradient + SVG film-grain layers, hero/check-card/steps/feature/CTA/footer
+    styles, `scale(0.97)` button press, staggered entrance motion, full reduced-motion +
+    responsive breakpoints.
+- Verification: `npm run typecheck` and `npm run lint` both clean. Ran `next dev` (with a
+  local dummy `.env.local`, gitignored) and confirmed the landing live via the browser —
+  hero, check-card mockup, all sections, and responsive single-column stacking render
+  correctly. The `/dashboard` route is session-gated (redirects without a real GitHub
+  session), so its full-fidelity check is deferred to the Vercel preview for PR #5.
+- Outcome: committed on `feat/premium-dashboard-ui`, pushed to update PR #5 (Vercel
+  preview redeploys). Not merged — human visual review of the preview first.
