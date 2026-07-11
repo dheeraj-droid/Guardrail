@@ -161,8 +161,6 @@ export default async function HomePage({
               Merging is blocked
             </div>
           </div>
-
-          <div className="hero-visual-glow" />
         </div>
       </section>
 
@@ -270,7 +268,6 @@ export default async function HomePage({
       {configured && appSlug && (
         <section className="container">
           <div className="cta-band">
-            <div className="cta-band-glow" aria-hidden="true" />
             <h2>Put a guardrail on your contract.</h2>
             <p>Wire it up in a couple of minutes. It watches every PR from then on.</p>
             <div className="actions actions-center">

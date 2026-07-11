@@ -257,3 +257,57 @@ merged)
   session), so its full-fidelity check is deferred to the Vercel preview for PR #5.
 - Outcome: committed on `feat/premium-dashboard-ui`, pushed to update PR #5 (Vercel
   preview redeploys). Not merged — human visual review of the preview first.
+
+## 2026-07-11 (cont.)
+
+**De-slop pass on the premium redesign** (`feat/premium-dashboard-ui`, PR #5, same branch)
+- The prior commit's redesign was visually confirmed live (`next dev` + browser screenshot)
+  and, while structurally solid, read as generic "AI dark SaaS" on inspection — ran the
+  `kill-ai-slop` skill's scanner (`node .claude/skills/kill-ai-slop/scripts/scan.mjs src`)
+  and manually triaged the full 23-tell taxonomy against `globals.css`/`page.tsx`/
+  `layout.tsx`. Confirmed 6 real tells (18 hits): gradient-clip headline text, three
+  stacked atmospheric gradient blobs behind the whole page, a pulsing green glow-halo dot
+  in the eyebrow badge, feature-grid icons tinted in a see-through wash of their own
+  color (classic "icon in a tint of itself" + rounded-square-tile combo), a
+  linen-gradient card surface (lighter-above-darker-below), and a tinted indigo glow
+  shadow on buttons/step numbers instead of a colorless elevation shadow.
+- Token-level fixes in `globals.css` only where possible (per the skill's own "fix tokens
+  first" ordering): collapsed the two-hue indigo+cyan accent system to one held accent
+  (dropped `--color-accent` and `--color-primary-deep`), replaced all gradient fills
+  (button-primary, brand-mark, step-num, hero-title-accent, check-card surface, cta-band
+  background) with solid fills, made `--shadow-pop`/`--shadow-float` colorless, removed
+  the pulsing/halo animation on the eyebrow dot and the now-dead `pulse` keyframe,
+  stripped the tinted icon-tile background/border from `.feature-icon` (icon now just
+  carries the one accent color, no container), reduced the page-wide ambient gradient
+  from 3 stacked radials to 1 restrained one over the hero only, and softened
+  `.notice-error` from an all-one-hue wash to a neutral surface with color carried only
+  in the text. `page.tsx`: removed the two now-unstyled glow-blob divs
+  (`hero-visual-glow`, `cta-band-glow`).
+- Deliberately left 5 groups/10 hits the scanner still flags, after reading each: the one
+  remaining hero-top gradient (singular, restrained, points at one element — matches the
+  skill's own "if a glow must exist, let it point at one element" exception); the sticky
+  header's `backdrop-filter` blur (one functional translucent nav, not "every card a
+  glass pane"); `formatComment.ts`'s warning emoji (backend PR-comment copy, out of this
+  task's scope and outside the frontend files this branch touches); the `check-blocked`
+  circle+diagonal-line icon (a standard prohibited/no-entry glyph, not a crude AI-drawn
+  blob — scanner false positive); and mono-font usage, all of which is on real code
+  (file paths, line numbers, a code-braces glyph) not UI chrome — not the "tasteful
+  terminal" pattern.
+- Verified: `npm run typecheck` clean, `npm run lint` 0 problems, `npm test` 180/180
+  passing (no regressions). Reverted an incidental `package-lock.json` diff from a local
+  `npm install` — it dropped the `@emnapi/*` optional-dependency entries that a prior
+  entry in this log already fixed once for Linux CI; committing it again would have
+  reintroduced that exact bug.
+- Visual verification: got one real browser screenshot of the hero before fixing (visibly
+  confirmed the gradient headline, pulsing dot, and gradient button described above).
+  After the fixes, the in-app browser's screenshot/zoom capability was stuck
+  (timed out repeatedly, independent of page/tab) for the rest of the session, so
+  post-fix confirmation relied on `get_page_text`/`read_page` (content and structure
+  intact, all links present) plus direct source review of each small, mechanical CSS
+  change (removing a gradient/animation/tint is not layout-affecting). Also built and
+  used a throwaway harness (`src/app/previewharness999/`, mocked the two dashboard
+  fetches, deleted before commit) to confirm `LinkManager`'s populated/empty/error states
+  still render correctly after the shared-token changes (buttons, notices, brand-mark
+  are used on both landing and dashboard). A full pixel-level after screenshot is still
+  worth a human pass on the Vercel preview.
+- Outcome: committed on `feat/premium-dashboard-ui`, pushed to update PR #5.
