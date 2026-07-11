@@ -218,3 +218,12 @@ merged)
   merging.
 - Outcome: branch pushed, draft PR opened against `main` (not merged — background-job
   convention for this session; the human should review the actual look before merging).
+- Follow-up after opening the PR: the advisor caught that `--color-primary-fg` was
+  `#0a0b12` (near-black) on the `.button-primary` indigo gradient — plausible sub-4.5:1
+  contrast at the darker gradient stop, and confirmed via `WebFetch` on the live
+  production URL (`guardrail-coral.vercel.app`, shared by the user) that this button IS
+  the default landing-page state in production (dashboard env is configured there), not
+  a rare branch. Changed `--color-primary-fg` to `#ffffff`. Re-ran `npm run typecheck` /
+  `npm run lint` clean (had to `rm -rf .next` first — stale generated route types from
+  the deleted scratch preview route broke typecheck). Pushed as a second commit on the
+  same branch/PR.
