@@ -2,10 +2,20 @@
 
 **Wave:** V0 | **Agent:** module-builder | **Depends on:** v1 (complete on `main`)
 **Files produced:** `src/types/contract.ts` (edit), `src/config/env.ts` (edit),
-`supabase/migrations/0004_processed_deliveries.sql`,
 `supabase/migrations/0005_multi_frontend.sql`,
 `tests/config/env.test.ts` (edit — new cases only, do not remove existing ones),
 `tests/db/migrations.test.ts` (new, optional — see Acceptance tests)
+
+**Post-authoring correction:** File 3 below (`0004_processed_deliveries.sql`) was
+**never implemented** — Track N's idempotency design was twice-revised after this spec
+was authored (`docs/PLAN_V2.md §3`) and the delivery-claim-table approach was rejected
+as actively harmful (a claim committed before work is durably handed off has no safe
+release path on failure, so it silently swallows the retries it exists to protect).
+Track N ships with exactly one idempotency mechanism — `createInProgressCheckRun`
+reusing an existing non-completed check run — and no migration at all. The `0004`
+numbering gap is intentional and permanent; `0005_multi_frontend.sql` is the only
+migration this wave actually produced. File 3's section is left below only as a record
+of the rejected design.
 
 ## Purpose
 
@@ -93,7 +103,7 @@ decide which branch to take) — implement it as a plain `try { loadQueueEnv(sou
 return true; } catch { return false; }`, reusing `loadQueueEnv`'s own validation rather
 than duplicating the var-presence check.
 
-## File 3 — `supabase/migrations/0004_processed_deliveries.sql`
+## File 3 — `supabase/migrations/0004_processed_deliveries.sql` (REJECTED — not implemented, see note above)
 
 ```sql
 -- Webhook-delivery idempotency (Track N). A queue (QStash) or GitHub's own webhook

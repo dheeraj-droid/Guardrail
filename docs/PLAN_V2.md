@@ -12,14 +12,28 @@ listed as out-of-scope-for-v1, now scoped in for v2:
 4. **Multi-frontend fan-out** (`project_links.backend_repo_id` is `UNIQUE` today — one
    frontend per backend, monorepo aside).
 
-**Status:** specs authored — `docs/specs/V0-v2-types-env-migrations.md`,
-`L-ref-resolution.md`, `M-rename-detection.md`, `N-retry-queue.md`,
-`O-multi-frontend.md`, `P-pipeline-v2-integration.md` all exist at v1 spec fidelity, on
-branch `feat/v2`. Track O's verdict-shape decision (§4) is resolved: one aggregated
-check run/comment per PR, not one per frontend — this moved most of Track O's original
-scope into the new Track P (Wave V2 pipeline integration) so it wouldn't collide with
-Track M's parallel `formatComment.ts` edit. Implementation waves (V0 → V1 → V2 → V3) are
-in progress; see `docs/IMPLEMENTATION_LOG.md` for wave-by-wave outcomes as they land.
+**Status:** implementation complete on branch `feat/v2`, not yet merged to `main`. All
+four waves (V0 → V1 → V2 → V3) landed: types/env/migrations, the four parallel tracks
+(L, M, N, O), the Track P pipeline-integration rewrite, and a Wave V3 spec-auditor pass
+against all six track specs plus every CLAUDE.md Law — zero code defects found. Gate:
+`npm run typecheck` clean, `npm run lint` clean, 260/260 tests green across 30 files (up
+from v1's 180/24). See `docs/IMPLEMENTATION_LOG.md` for wave-by-wave outcomes, including
+the three real defects (a rename false-positive, a QStash delivery-claim idempotency
+architecture flaw, a QStash URL-encoding bug) caught and fixed *before* the audit, not by
+it.
+
+**One outstanding item before this is production-ready, deliberately not papered over:**
+Track N's spec (`docs/specs/N-retry-queue.md`) and this doc's own §3 Acceptance sketch
+both mandate "one manual live verification against a real QStash sandbox... before
+shipping" — a forced redelivery, confirming exactly one check run results. That
+verification has **not** been performed; Track N's queue path is proven only against
+mocks. `feat/v2` is deliberately **not merged to `main`** yet for this reason (Vercel
+auto-deploys from `main`) — merging now would put the rewritten pipeline in front of live
+PRs before that round-trip is confirmed. Do the live QStash verification (or a
+smoke-test PR against a real deployment, mirroring v1's own `docs/confirm-live-e2e-run`
+precedent) before merging, and log it in `docs/IMPLEMENTATION_LOG.md` exactly like v1's
+live-verification entry — 260 green tests is CI-verified, not live-verified, and those
+are not the same claim.
 
 ## 0. Ground rules carried over from v1
 
