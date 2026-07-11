@@ -70,6 +70,34 @@ file:line locations**. Up to 5.
 - Wait for the check run to finish, open the **Checks** tab, expand Guardrail,
   and capture at ~1280 px window width.
 
+### Verified capture recipe (everything below is live as of this writing)
+
+The demo PR and its failing check already exist and are publicly viewable — no
+sign-in needed to see them. Capture in a browser at ~1280 px width, then crop.
+
+- **Shot 1 & 2 — the failing check (hero):**
+  <https://github.com/dheeraj-droid/guardrail-demo/pull/1/checks?check_run_id=86213018322>
+  The check detail reads, verbatim:
+  > **Guardrail Contract Check** — failed in 3s
+  > 4 broken frontend reference(s) to 2 schema change(s)
+  >
+  > Found 4 frontend reference(s) to 2 breaking schema change(s). Merge is blocked
+  > until the frontend references are removed or the schema change is reverted.
+
+  Capture the whole check panel (status + summary). For shot 2, scroll to the
+  detailed `file:line` breakdown lower in the summary and capture that. Frame so
+  the red ✗ "Failing" status and the `guardrail-app` author are both visible.
+- **Shot 4 — the dashboard:** <https://guardrail-coral.vercel.app/> (sign in with
+  GitHub to reach the link-management screen; capture the repo-link form with the
+  spec path + source-directory fields).
+- **Shot 3 — a passing check:** push a spec change with no frontend impact to a new
+  demo PR and capture the green `success` check. (Optional but reassuring.)
+
+> Note: automated capture from this session's browser timed out (GitHub's checks
+> view holds a live connection open, and the sandbox screenshot tool hangs waiting
+> for idle). The pages themselves are confirmed live and correct — capture them
+> from your own browser; it takes about two minutes.
+
 ---
 
 ## Final pre-upload gate
