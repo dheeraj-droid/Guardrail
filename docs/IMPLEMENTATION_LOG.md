@@ -311,3 +311,42 @@ merged)
   are used on both landing and dashboard). A full pixel-level after screenshot is still
   worth a human pass on the Vercel preview.
 - Outcome: committed on `feat/premium-dashboard-ui`, pushed to update PR #5.
+
+## 2026-07-11 (cont. 2)
+
+**Serif headline + apple-design accessibility pass** (`feat/premium-dashboard-ui`, PR #5)
+- Added `Fraunces` (Google, variable, has a real optical-size axis) via `next/font/google`
+  in `layout.tsx` as `--font-serif` — no new dependency (Law 13; `next/font` ships with
+  `next`). Restricted strictly to headline moments: `.hero-title`, `.section-head h2`
+  (both "How it works" and "Why Guardrail"), `.cta-band h2`, `.dashboard-intro h1`.
+  Everything else (nav, body copy, buttons, form UI, card titles, dashboard table/form)
+  stays on `--font-sans` (Inter) — one deliberate second voice with an exclusive job, not
+  a "premium == serif" reflex applied broadly (the exact failure mode the kill-ai-slop
+  skill's tell 08 warns about).
+- Applied the apple-design skill's §15 typography discipline: tracking is size-specific,
+  not one fixed `letter-spacing` — the hero (largest) got `-0.015em`, the smaller section
+  h2s and dashboard h1 got a lighter `-0.01em`/`-0.008em` (serif also needs less negative
+  tracking than the grotesque sans values the hero used before, since serif ductus already
+  implies spacing). Added `font-optical-sizing: auto` on every serif heading so Fraunces'
+  opsz axis actually engages. Most of the skill (springs, gesture velocity, drag momentum,
+  rubber-banding) doesn't apply here — no draggable/gesture surfaces exist in this app, and
+  Law 13 rules out an animation library regardless — so I only pulled the parts that
+  transfer to a static page: typography (§15) and materials/reduced-motion accessibility
+  (§12/§14). Added `prefers-reduced-transparency` and `prefers-contrast` media queries for
+  the one translucent surface on the page (`.site-header`'s `backdrop-filter`) that drop
+  the blur for a solid surface, per the skill's explicit guidance not to skip those signals
+  just because there's only one blur to handle. The existing `:active { scale(0.97) }`
+  press feedback was already aligned with §1 ("respond on pointer-down") — no change
+  needed there.
+- Verified: `npm run typecheck` clean, `npm run lint` 0 problems, `npm test` 180/180,
+  and `npm run build` (production build, not just dev) succeeds — confirms the Fraunces
+  font resolves correctly at build time, not just in the dev server. Visually confirmed
+  live via the browser: got a real screenshot of the hero showing the serif headline
+  rendering correctly with the de-slopped flat button/dot/accent color from the prior
+  commit all still in place. The screenshot tool was intermittently stuck again for the
+  rest of the page (feature grid, section headings) — those changes are the same
+  mechanical pattern as the hero (font-family + tracking on an existing rule) so
+  confirmed via source review rather than a second screenshot; genuinely lower-risk than
+  the hero change already visually confirmed.
+- Outcome: committed on `feat/premium-dashboard-ui`, pushed to update PR #5 (Vercel
+  preview redeploys).

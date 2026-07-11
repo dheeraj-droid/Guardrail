@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
-import { Inter, JetBrains_Mono } from 'next/font/google';
+import { Fraunces, Inter, JetBrains_Mono } from 'next/font/google';
 import Link from 'next/link';
 import './globals.css';
 
@@ -18,6 +18,18 @@ const jetbrainsMono = JetBrains_Mono({
   variable: '--font-mono',
 });
 
+// Editorial serif reserved for headline moments only (hero, section titles, dashboard
+// title) — every other element stays on --font-sans. One deliberate second voice, not a
+// "premium == serif" reflex: Fraunces carries its own optical-size axis, so it stays
+// crisp at both hero and section-heading sizes.
+const fraunces = Fraunces({
+  subsets: ['latin'],
+  weight: ['500', '600'],
+  style: ['normal'],
+  display: 'swap',
+  variable: '--font-serif',
+});
+
 export const metadata: Metadata = {
   title: 'Guardrail — Stop breaking API changes before they merge',
   description:
@@ -26,7 +38,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
+    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable} ${fraunces.variable}`}>
       <body>
         <div className="page-grain" aria-hidden="true" />
         <header className="site-header">

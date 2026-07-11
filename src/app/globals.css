@@ -250,9 +250,14 @@ code,
 }
 
 .hero-title {
+  font-family: var(--font-serif), Georgia, serif;
+  font-optical-sizing: auto;
+  font-weight: 600;
   font-size: clamp(2.4rem, 3.6vw + 1rem, 3.65rem);
-  line-height: 1.04;
-  letter-spacing: -0.032em;
+  /* Serif ductus already implies spacing a grotesque sans needs from tracking — a
+     lighter negative value than the old sans headline, tightened for its large size. */
+  line-height: 1.08;
+  letter-spacing: -0.015em;
   margin: 0 0 1.2rem;
 }
 
@@ -522,8 +527,14 @@ code,
 }
 
 .section-head h2 {
+  font-family: var(--font-serif), Georgia, serif;
+  font-optical-sizing: auto;
+  font-weight: 500;
   font-size: clamp(1.7rem, 2vw + 1rem, 2.3rem);
-  letter-spacing: -0.025em;
+  line-height: 1.18;
+  /* Smaller than the hero, so tracking is proportionally less aggressive — tracking is
+     size-specific, not one fixed value everywhere (Apple HIG typography guidance). */
+  letter-spacing: -0.01em;
   margin: 0;
 }
 
@@ -651,7 +662,12 @@ code,
 }
 
 .cta-band h2 {
+  font-family: var(--font-serif), Georgia, serif;
+  font-optical-sizing: auto;
+  font-weight: 500;
   font-size: clamp(1.7rem, 2vw + 1rem, 2.2rem);
+  line-height: 1.18;
+  letter-spacing: -0.01em;
   margin: 0 0 0.6rem;
 }
 
@@ -695,7 +711,12 @@ code,
 }
 
 .dashboard-intro h1 {
+  font-family: var(--font-serif), Georgia, serif;
+  font-optical-sizing: auto;
+  font-weight: 500;
   font-size: 1.9rem;
+  line-height: 1.2;
+  letter-spacing: -0.008em;
   margin: 0.35rem 0 0.5rem;
 }
 
@@ -1114,5 +1135,25 @@ input[type='checkbox'] {
 
   .check-card {
     transform: none;
+  }
+}
+
+/* The header is the one translucent material on the page — make it a solid surface
+   when the platform asks for less transparency or more contrast, instead of ignoring
+   the setting because "it's just one blur." */
+@media (prefers-reduced-transparency: reduce) {
+  .site-header {
+    background: var(--color-bg);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .site-header {
+    background: var(--color-bg);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border-bottom-color: var(--color-border-strong);
   }
 }
