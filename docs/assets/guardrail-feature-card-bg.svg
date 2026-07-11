@@ -1,0 +1,15 @@
+<svg width="965" height="482" viewBox="0 0 965 482" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Guardrail feature card background">
+  <defs>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0 H0 V48" fill="none" stroke="#FFFFFF" stroke-opacity="0.035" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect x="0" y="0" width="965" height="482" fill="#17191F"/>
+  <rect x="0" y="0" width="965" height="482" fill="url(#grid)"/>
+  <g transform="translate(390.4,-77.6) scale(1.6)" opacity="0.05">
+    <path d="M166 132 L346 132 Q366 132 366 152 L366 244 Q366 330 256 390 Q146 330 146 244 L146 152 Q146 132 166 132 Z" fill="none" stroke="#FFFFFF" stroke-width="6"/>
+  </g>
+  <g transform="translate(-150,250) scale(0.9)" opacity="0.045">
+    <path d="M166 132 L346 132 Q366 132 366 152 L366 244 Q366 330 256 390 Q146 330 146 244 L146 152 Q146 132 166 132 Z" fill="none" stroke="#E9564A" stroke-width="8"/>
+  </g>
+</svg>
