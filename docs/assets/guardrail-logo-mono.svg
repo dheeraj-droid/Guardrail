@@ -1,0 +1,11 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Guardrail">
+  <!-- Single-color mark: the check is knocked out of the shield so the
+       background shows through. Set the shield color via `color`/currentColor. -->
+  <defs>
+    <mask id="guardrail-check-cut">
+      <rect x="0" y="0" width="512" height="512" fill="#fff"/>
+      <path d="M208 250 L240 284 L316 200" fill="none" stroke="#000" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+    </mask>
+  </defs>
+  <path d="M166 132 L346 132 Q366 132 366 152 L366 244 Q366 330 256 390 Q146 330 146 244 L146 152 Q146 132 166 132 Z" fill="currentColor" mask="url(#guardrail-check-cut)"/>
+</svg>
