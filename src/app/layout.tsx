@@ -15,6 +15,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <header className="site-header">
           <div className="container">
             <Link href="/" className="brand">
+              <span className="brand-mark" aria-hidden="true" />
               Guardrail
             </Link>
           </div>

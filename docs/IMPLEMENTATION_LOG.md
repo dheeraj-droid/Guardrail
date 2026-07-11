@@ -186,3 +186,35 @@ open" above are now all resolved.
   actually verified live, linking the deployment and demo repo.
 - Outcome: merged `--no-ff`, branch deleted, pushed to `origin/main`. Verified
   `npm run typecheck` (clean) and `npm run lint` (0 problems) before pushing.
+
+## 2026-07-11
+
+**Premium dashboard/landing redesign** (`feat/premium-dashboard-ui`, PR opened, not yet
+merged)
+- Rewrote `src/app/globals.css` as a dark-first design system: color tokens, refined
+  system-font typography (tight tracking on headings per Apple's optical-sizing
+  guidance), card/table/form/button polish, `backdrop-filter` translucent sticky header,
+  press feedback (`scale(0.97)` on `:active`), and a `prefers-reduced-motion` guard. Pure
+  CSS only — no new dependency (Law 13 rules out Tailwind/Framer Motion/CSS-in-JS).
+- `layout.tsx`: added a small gradient `brand-mark` next to the "Guardrail" wordmark.
+- `page.tsx` (landing): added an eyebrow label above the H1; no logic changes.
+- `LinkManager.tsx`: same states/handlers, restyled markup only — loading state now
+  shows a CSS spinner, empty state gets a dedicated class, table wrapped in a horizontal
+  `.table-scroll` container for small viewports.
+- No component-render tests exist for these files (dashboard tests are API-route only),
+  so no test changes were needed.
+- Verification: `npm run typecheck` and `npm run lint` both clean. Ran `next dev` and
+  confirmed live: landing page renders 200 with the new classes present
+  (`eyebrow`/`brand-mark`/`notice-error`) across the default, `?error=auth`, and
+  not-configured states. The real `/dashboard` route needs `GITHUB_APP_CLIENT_ID` etc.
+  (not set locally) so it 500s before rendering, as it always has — added a temporary
+  scratch route (`src/app/scratchpreview999/page.tsx`, mock data, deleted before commit)
+  to confirm `LinkManager`'s loading/empty/error/populated states all compile and wire
+  their new classes correctly.
+- Caveat: no browser-automation/screenshot tool is available in this environment, so
+  visual correctness (color contrast, spacing, gradients) was verified by careful CSS
+  authoring against the `apple-design` and `emil-design-eng` skills plus structural
+  HTTP/HTML checks, not by looking at rendered pixels. Worth a human visual pass before
+  merging.
+- Outcome: branch pushed, draft PR opened against `main` (not merged — background-job
+  convention for this session; the human should review the actual look before merging).

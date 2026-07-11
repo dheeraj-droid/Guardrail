@@ -23,6 +23,7 @@ export default async function HomePage({
 
   return (
     <div className="landing">
+      <span className="eyebrow">Automated contract enforcement</span>
       <h1>Guardrail</h1>
       <p className="tagline">
         Guardrail intercepts backend pull requests that change an OpenAPI contract, scans

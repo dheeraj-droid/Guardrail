@@ -178,40 +178,45 @@ export function LinkManager({ login }: LinkManagerProps) {
       <section className="card">
         <h2>Linked repositories</h2>
         {loading ? (
-          <p>Loading…</p>
+          <p className="loading-row">
+            <span className="spinner" aria-hidden="true" />
+            Loading…
+          </p>
         ) : links.length === 0 ? (
-          <p>No links yet — create one below.</p>
+          <p className="empty-state">No links yet — create one below.</p>
         ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Backend</th>
-                <th>Frontend</th>
-                <th>Spec path</th>
-                <th>Src dir</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {links.map((link) => (
-                <tr key={link.id}>
-                  <td>{repoFullName(link.backend_repo_id)}</td>
-                  <td>{repoFullName(link.frontend_repo_id)}</td>
-                  <td>{link.openapi_file_path}</td>
-                  <td>{link.frontend_src_directory}</td>
-                  <td>
-                    <button
-                      type="button"
-                      className="button button-danger"
-                      onClick={() => void handleDelete(link.backend_repo_id)}
-                    >
-                      Delete
-                    </button>
-                  </td>
+          <div className="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Backend</th>
+                  <th>Frontend</th>
+                  <th>Spec path</th>
+                  <th>Src dir</th>
+                  <th />
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {links.map((link) => (
+                  <tr key={link.id}>
+                    <td>{repoFullName(link.backend_repo_id)}</td>
+                    <td>{repoFullName(link.frontend_repo_id)}</td>
+                    <td>{link.openapi_file_path}</td>
+                    <td>{link.frontend_src_directory}</td>
+                    <td>
+                      <button
+                        type="button"
+                        className="button button-danger"
+                        onClick={() => void handleDelete(link.backend_repo_id)}
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
 
