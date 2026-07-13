@@ -152,26 +152,13 @@ export function LinkManager({ login }: LinkManagerProps) {
     }
   }
 
-  async function handleLogout(): Promise<void> {
-    try {
-      await fetch('/api/auth/logout', { method: 'POST', headers: CSRF_HEADERS });
-    } finally {
-      window.location.href = '/';
-    }
-  }
-
   const adminRepos = repos.filter((r) => r.canAdminister);
 
   return (
     <div className="dashboard">
-      <div className="dashboard-header">
-        <p>
-          Signed in as <strong>{login}</strong>
-        </p>
-        <button type="button" className="button" onClick={() => void handleLogout()}>
-          Log out
-        </button>
-      </div>
+      {/* Identity and sign-out live in the global site header (src/app/layout.tsx); the
+          `login` prop is surfaced here as the page title so it stays meaningful. */}
+      <h1 className="dashboard-title">{login}&rsquo;s links</h1>
 
       {error && <p className="notice notice-error">{error}</p>}
 
