@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
-import { Fraunces, Inter, JetBrains_Mono } from 'next/font/google';
+import { Inter, JetBrains_Mono } from 'next/font/google';
 import Link from 'next/link';
 import './globals.css';
 
@@ -16,18 +16,6 @@ const jetbrainsMono = JetBrains_Mono({
   subsets: ['latin'],
   display: 'swap',
   variable: '--font-mono',
-});
-
-// Editorial serif reserved for headline moments only (hero, section titles, dashboard
-// title) — every other element stays on --font-sans. One deliberate second voice, not a
-// "premium == serif" reflex: Fraunces carries its own optical-size axis, so it stays
-// crisp at both hero and section-heading sizes.
-const fraunces = Fraunces({
-  subsets: ['latin'],
-  weight: ['500', '600'],
-  style: ['normal'],
-  display: 'swap',
-  variable: '--font-serif',
 });
 
 // The real brand mark (docs/assets/guardrail-logo.svg) — coral shield, white checkmark.
@@ -66,14 +54,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable} ${fraunces.variable}`}>
+    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
       <body>
-        <div className="aurora" aria-hidden="true">
-          <span />
-          <span />
-          <span />
-        </div>
-        <div className="page-grain" aria-hidden="true" />
         <header className="site-header">
           <div className="container site-header-inner">
             <Link href="/" className="brand">
@@ -81,24 +63,18 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <span>Guardrail</span>
             </Link>
             <nav className="site-nav" aria-label="Primary">
-              <a href="#how-it-works">How it works</a>
-              <a href="#features">Why Guardrail</a>
+              <Link href="/#how-it-works">How it works</Link>
+              <Link href="/#features">Why Guardrail</Link>
+              <Link href="/#faq">FAQ</Link>
               <a
-                className="site-nav-link-strong"
                 href="https://github.com/dheeraj-droid/Guardrail"
                 target="_blank"
                 rel="noreferrer"
               >
                 GitHub
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <path
-                    d="M7 17 17 7M17 7H8M17 7v9"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
+              </a>
+              <a className="button button-primary" href="/api/auth/login">
+                Sign in
               </a>
             </nav>
           </div>
@@ -106,16 +82,46 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <main>{children}</main>
         <footer className="site-footer">
           <div className="container site-footer-inner">
-            <div className="brand">
-              <BrandMark />
-              <span>Guardrail</span>
+            <div>
+              <div className="brand">
+                <BrandMark />
+                <span>Guardrail</span>
+              </div>
+              <p className="site-footer-note">
+                Contract enforcement for teams that ship backend and frontend in lockstep.
+              </p>
+              <p className="site-footer-copy">
+                Built with the GitHub Checks API · {new Date().getFullYear()}
+              </p>
             </div>
-            <p className="site-footer-note">
-              Contract enforcement for teams that ship backend and frontend in lockstep.
-            </p>
-            <p className="site-footer-copy">
-              Built with the GitHub Checks API · {new Date().getFullYear()}
-            </p>
+            <div className="footer-cols">
+              <div className="footer-col">
+                <span className="footer-col-title">Product</span>
+                <Link href="/#how-it-works">How it works</Link>
+                <Link href="/#features">Why Guardrail</Link>
+                <Link href="/#faq">FAQ</Link>
+              </div>
+              <div className="footer-col">
+                <span className="footer-col-title">Resources</span>
+                <a
+                  href="https://github.com/dheeraj-droid/Guardrail"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  GitHub
+                </a>
+                <a
+                  href="https://github.com/dheeraj-droid/guardrail-demo"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Live demo repo
+                </a>
+              </div>
+            </div>
+          </div>
+          <div className="footer-wordmark" aria-hidden="true">
+            GUARDRAIL
           </div>
         </footer>
       </body>

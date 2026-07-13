@@ -28,67 +28,59 @@ export default async function HomePage({
   return (
     <>
       {/* ---------------- Hero ---------------- */}
-      <section className="hero container">
-        <div className="hero-copy">
-          <span className="eyebrow">
-            <span className="eyebrow-dot" aria-hidden="true" />
-            Automated contract enforcement
-          </span>
+      <section className="hero">
+        <span className="eyebrow">
+          <span className="eyebrow-dot" aria-hidden="true" />
+          Contract enforcement for GitHub
+        </span>
 
-          <h1 className="hero-title">
-            Ship API changes without <span className="hero-title-accent">breaking the frontend</span>.
-          </h1>
+        <h1 className="hero-title">
+          Ship API changes without{' '}
+          <span className="hero-title-accent">breaking the frontend.</span>
+        </h1>
 
-          <p className="hero-lede">
-            Guardrail intercepts backend pull requests that change an OpenAPI contract,
-            scans your linked frontend for code that would break, and blocks the merge
-            before it ships — automatically, through the GitHub Checks API.
+        <p className="hero-lede">
+          Guardrail watches every backend pull request that changes your OpenAPI
+          contract, scans the frontend for code that would break, and blocks the merge
+          before it ships.
+        </p>
+
+        {showAuthError && (
+          <p className="notice notice-error" role="alert">
+            Sign-in failed. Please try again.
           </p>
+        )}
 
-          {showAuthError && (
-            <p className="notice notice-error" role="alert">
-              Sign-in failed. Please try again.
-            </p>
-          )}
+        {!configured && (
+          <p className="notice">
+            The dashboard is not configured on this deployment yet. The webhook pipeline
+            is unaffected.
+          </p>
+        )}
 
-          {!configured && (
-            <p className="notice">
-              The dashboard is not configured on this deployment yet. The webhook pipeline
-              is unaffected.
-            </p>
-          )}
-
-          {configured && appSlug && (
-            <div className="actions">
-              <a className="button button-primary button-lg" href="/api/auth/login">
-                Sign in with GitHub
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <path
-                    d="M5 12h14M13 6l6 6-6 6"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
+        {configured && appSlug && (
+          <div className="actions">
+            <a className="button button-primary button-lg" href="/api/auth/login">
+              Sign in with GitHub
+            </a>
+            {installHref && (
+              <a className="button button-lg" href={installHref}>
+                Install the GitHub App
               </a>
-              {installHref && (
-                <a className="button button-lg" href={installHref}>
-                  Install the GitHub App
-                </a>
-              )}
-            </div>
-          )}
+            )}
+          </div>
+        )}
 
-          <ul className="hero-trust">
-            <li>No regex — TypeScript compiler AST</li>
-            <li>Fail-open by design</li>
-            <li>Zero config to start</li>
-          </ul>
-        </div>
+        <ul className="hero-trust">
+          <li>TypeScript compiler AST — no regex</li>
+          <li>Fail-open by design</li>
+          <li>Zero config to start</li>
+        </ul>
+      </section>
 
-        {/* The money shot: a GitHub-checks panel catching a breaking change. */}
-        <div className="hero-visual" aria-hidden="true">
+      {/* ---------------- Product panel: the money shot ---------------- */}
+      <div className="product-panel-wrap" aria-hidden="true">
+        <div className="product-panel">
           <div className="check-card">
             <div className="check-card-header">
               <div className="check-card-pr">
@@ -105,8 +97,8 @@ export default async function HomePage({
             </div>
 
             <div className="check-list">
-              <div className="check-row check-row-pass">
-                <span className="check-icon check-icon-pass" aria-hidden="true">
+              <div className="check-row">
+                <span className="check-icon check-icon-pass">
                   <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
                     <path d="M3.5 8.5l3 3 6-7" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
@@ -114,8 +106,8 @@ export default async function HomePage({
                 <span className="check-name">build</span>
                 <span className="check-status">Passed</span>
               </div>
-              <div className="check-row check-row-pass">
-                <span className="check-icon check-icon-pass" aria-hidden="true">
+              <div className="check-row">
+                <span className="check-icon check-icon-pass">
                   <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
                     <path d="M3.5 8.5l3 3 6-7" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
@@ -124,7 +116,7 @@ export default async function HomePage({
                 <span className="check-status">Passed</span>
               </div>
               <div className="check-row check-row-fail">
-                <span className="check-icon check-icon-fail" aria-hidden="true">
+                <span className="check-icon check-icon-fail">
                   <svg width="11" height="11" viewBox="0 0 16 16" fill="none">
                     <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
                   </svg>
@@ -136,8 +128,8 @@ export default async function HomePage({
 
             <div className="check-detail">
               <p className="check-detail-head">
-                <span className="check-detail-dot" /> Deleted field <code>User.phoneNumber</code> is
-                still used in the frontend
+                <span className="check-detail-dot" /> Deleted field{' '}
+                <code>User.phoneNumber</code> is still used in the frontend
               </p>
               <ul className="check-detail-list">
                 <li>
@@ -162,105 +154,198 @@ export default async function HomePage({
             </div>
           </div>
         </div>
-      </section>
+      </div>
 
       {/* ---------------- How it works ---------------- */}
-      <section className="section container" id="how-it-works">
-        <div className="section-head">
-          <span className="section-kicker">How it works</span>
-          <h2>Three steps between a webhook and a verdict.</h2>
-          <p className="section-sub">
-            Install once, link your repositories, and every future contract change is
-            checked before it can merge.
-          </p>
-        </div>
+      <section className="section" id="how-it-works">
+        <div className="container">
+          <div className="section-head">
+            <span className="section-kicker">How it works</span>
+            <h2>
+              From a webhook to a verdict{' '}
+              <span className="h2-accent">in three steps.</span>
+            </h2>
+            <p className="section-sub">
+              Install once, link your repositories, and every future contract change is
+              checked before it can merge.
+            </p>
+          </div>
 
-        <ol className="steps">
-          <li className="step">
-            <span className="step-num">1</span>
-            <h3>Install &amp; link</h3>
-            <p>
-              Add the GitHub App to your backend and frontend repos, then pair them in the
-              dashboard. Monorepos are a single link.
-            </p>
-          </li>
-          <li className="step">
-            <span className="step-num">2</span>
-            <h3>Diff the contract</h3>
-            <p>
-              On every backend PR, Guardrail diffs the OpenAPI spec — deletions, type
-              mutations, renames — into a precise list of breaking changes.
-            </p>
-          </li>
-          <li className="step">
-            <span className="step-num">3</span>
-            <h3>Scan &amp; block</h3>
-            <p>
-              It walks the frontend with the TypeScript compiler to find real usages of
-              broken fields, then passes or fails the check run accordingly.
-            </p>
-          </li>
-        </ol>
+          <ol className="steps">
+            <li className="step">
+              <span className="step-num">1</span>
+              <h3>Install &amp; link</h3>
+              <p>
+                Add the GitHub App to your backend and frontend repos, then pair them in
+                the dashboard. Monorepos are a single link.
+              </p>
+            </li>
+            <li className="step">
+              <span className="step-num">2</span>
+              <h3>Diff the contract</h3>
+              <p>
+                On every backend PR, Guardrail diffs the OpenAPI spec — deletions and
+                type mutations become a precise list of breaking changes.
+              </p>
+            </li>
+            <li className="step">
+              <span className="step-num">3</span>
+              <h3>Scan &amp; block</h3>
+              <p>
+                It walks the frontend with the TypeScript compiler to find real usages
+                of broken fields, then passes or fails the check run.
+              </p>
+            </li>
+          </ol>
+        </div>
       </section>
 
       {/* ---------------- Features ---------------- */}
-      <section className="section container" id="features">
-        <div className="section-head">
-          <span className="section-kicker">Why Guardrail</span>
-          <h2>Precision where grep-based tools guess.</h2>
+      <section className="section section-rule" id="features">
+        <div className="container">
+          <div className="section-head">
+            <span className="section-kicker">Why Guardrail</span>
+            <h2>
+              Precision where grep-based tools{' '}
+              <span className="h2-accent">guess.</span>
+            </h2>
+          </div>
+
+          <div className="feature-grid">
+            <article className="feature-card">
+              <span className="feature-icon" aria-hidden="true">{'{ }'}</span>
+              <h3>AST-accurate, never regex</h3>
+              <p>
+                Field usage is detected with the TypeScript compiler API — property
+                access and destructuring, aliases resolved to their source key. No false
+                positives from comments or strings.
+              </p>
+            </article>
+
+            <article className="feature-card">
+              <span className="feature-icon" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2l8 4v6c0 5-3.4 8-8 10-4.6-2-8-5-8-10V6l8-4Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+                  <path d="M8.5 12l2.4 2.4L15.5 9.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
+              <h3>Fail-open by law</h3>
+              <p>
+                If Guardrail itself errors, the check concludes as neutral — never a
+                false failure. Your team is never blocked by our bugs.
+              </p>
+            </article>
+
+            <article className="feature-card">
+              <span className="feature-icon" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path d="M13 2L4 14h6l-1 8 9-12h-6l1-8Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+                </svg>
+              </span>
+              <h3>Answers in seconds</h3>
+              <p>
+                The webhook acks in milliseconds and the scan runs with bounded
+                concurrency over the Git Blobs API — fast even on large frontends.
+              </p>
+            </article>
+
+            <article className="feature-card">
+              <span className="feature-icon" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <rect x="3" y="4" width="18" height="16" rx="2.5" stroke="currentColor" strokeWidth="1.6" />
+                  <path d="M3 9h18M8 4v16" stroke="currentColor" strokeWidth="1.6" />
+                </svg>
+              </span>
+              <h3>Monorepo or split</h3>
+              <p>
+                Backend and frontend in one repo or two — Guardrail scopes the scan to
+                your source directory either way. One link, one source of truth.
+              </p>
+            </article>
+          </div>
         </div>
+      </section>
 
-        <div className="feature-grid">
-          <article className="feature-card">
-            <span className="feature-icon" aria-hidden="true">{'{ }'}</span>
-            <h3>AST-accurate, never regex</h3>
-            <p>
-              Field usage is detected with the TypeScript compiler API — property access
-              and destructuring, aliases resolved to their source key. No false positives
-              from comments or strings.
-            </p>
-          </article>
+      {/* ---------------- FAQ ---------------- */}
+      <section className="section section-rule" id="faq">
+        <div className="container">
+          <div className="section-head">
+            <span className="section-kicker">FAQ</span>
+            <h2>
+              Questions before <span className="h2-accent">you get started?</span>
+            </h2>
+          </div>
 
-          <article className="feature-card">
-            <span className="feature-icon" aria-hidden="true">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                <path d="M12 2l8 4v6c0 5-3.4 8-8 10-4.6-2-8-5-8-10V6l8-4Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
-                <path d="M8.5 12l2.4 2.4L15.5 9.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </span>
-            <h3>Fail-open by law</h3>
-            <p>
-              If Guardrail itself errors, the check concludes as neutral — never a false
-              failure. Your team is never blocked by our bugs.
-            </p>
-          </article>
+          <div className="faq-grid">
+            <article className="faq-card faq-card-dark">
+              <h3>
+                <span className="faq-q">?</span>
+                How does Guardrail block a breaking PR?
+              </h3>
+              <p>
+                It publishes a check run on every backend PR through the GitHub Checks
+                API. With branch protection on, a failing Guardrail check blocks the
+                merge until the breaking references are resolved.
+              </p>
+            </article>
 
-          <article className="feature-card">
-            <span className="feature-icon" aria-hidden="true">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                <path d="M13 2L4 14h6l-1 8 9-12h-6l1-8Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
-              </svg>
-            </span>
-            <h3>Answers in seconds</h3>
-            <p>
-              The webhook acks in milliseconds and the scan runs with bounded concurrency
-              over the Git Blobs API — fast even on large frontends.
-            </p>
-          </article>
+            <article className="faq-card">
+              <h3>
+                <span className="faq-q">?</span>
+                What counts as a breaking change?
+              </h3>
+              <p>
+                Deleted fields and type mutations in your OpenAPI schemas. Guardrail
+                diffs the spec on every PR and only flags changes that can break a
+                consumer.
+              </p>
+            </article>
 
-          <article className="feature-card">
-            <span className="feature-icon" aria-hidden="true">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                <rect x="3" y="4" width="18" height="16" rx="2.5" stroke="currentColor" strokeWidth="1.6" />
-                <path d="M3 9h18M8 4v16" stroke="currentColor" strokeWidth="1.6" />
-              </svg>
-            </span>
-            <h3>Monorepo or split</h3>
-            <p>
-              Backend and frontend in one repo or two — Guardrail scopes the scan to your
-              source directory either way. One link, one source of truth.
-            </p>
-          </article>
+            <article className="faq-card">
+              <h3>
+                <span className="faq-q">?</span>
+                How does it find frontend usage?
+              </h3>
+              <p>
+                With the TypeScript compiler — property access, destructuring (aliases
+                resolved to the source key), and bracket-literal access. Never regex, so
+                comments and strings can&apos;t false-positive.
+              </p>
+            </article>
+
+            <article className="faq-card">
+              <h3>
+                <span className="faq-q">?</span>
+                What if Guardrail itself fails?
+              </h3>
+              <p>
+                The check concludes as neutral, never failure. Guardrail&apos;s own
+                errors are designed to never block your team&apos;s merges.
+              </p>
+            </article>
+
+            <article className="faq-card">
+              <h3>
+                <span className="faq-q">?</span>
+                Does it work in a monorepo?
+              </h3>
+              <p>
+                Yes. The backend and frontend can be the same repository — the scan is
+                scoped to the source directory you configure for the link.
+              </p>
+            </article>
+
+            <article className="faq-card">
+              <h3>
+                <span className="faq-q">?</span>
+                Does Guardrail store my code?
+              </h3>
+              <p>
+                Files are fetched through the GitHub API for the duration of a scan.
+                What persists is the verdict on the check run — not your source.
+              </p>
+            </article>
+          </div>
         </div>
       </section>
 
@@ -270,7 +355,7 @@ export default async function HomePage({
           <div className="cta-band">
             <h2>Put a guardrail on your contract.</h2>
             <p>Wire it up in a couple of minutes. It watches every PR from then on.</p>
-            <div className="actions actions-center">
+            <div className="actions">
               <a className="button button-primary button-lg" href="/api/auth/login">
                 Sign in with GitHub
               </a>

@@ -414,3 +414,35 @@ merged)
   (translate 0.18→7.29px, scale 1.0002→1.0081) and `document.getAnimations()` reported
   all three aurora animations plus the existing `rise` entrances running.
 - Outcome: committed on `feat/premium-dashboard-ui`, pushed to update PR #5.
+
+## 2026-07-13 (cont.)
+
+**Light editorial redesign — full pivot** (`feat/premium-dashboard-ui`, PR #5)
+- User shared 5 reference landing pages (Notion et al.) as the explicit quality bar and
+  direction — light, editorial, huge type, one accent, black CTAs, product mockup on a
+  vivid panel, dark footer with a giant wordmark. This supersedes the dark theme AND the
+  aurora background from the previous entry (user: "I want these kind of frontends").
+- `globals.css`: full rewrite as a light design system. White base, near-black ink,
+  hairline rules, coral `#E9564A` as the ONLY accent (kills the indigo/coral clash
+  flagged two entries ago — the logo hue now IS the accent), black primary buttons
+  (reference pattern), quiet colorless shadows. Aurora and film-grain removed; Fraunces
+  serif dropped (references are all sans) — headline voice is now Inter at 680 weight
+  with -0.034em tracking.
+- `page.tsx`: centered hero (badge, coral-accent headline phrase, black + outline CTAs,
+  trust row), the GitHub-checks mockup restyled as a LIGHT card centered on a deep-slate
+  grid-textured panel (the brand's marketplace feature-card look — the exact "light app
+  UI on vivid panel" move from the calendar reference), 3-step how-it-works with black
+  number squares, feature grid, NEW 6-item FAQ grid with one dark anchor card (reference
+  pattern), CTA band. Env gating/notice logic preserved verbatim.
+- `layout.tsx`: light glass header with a black Sign-in CTA, nav + FAQ link; dark footer
+  with link columns and a giant clipped `GUARDRAIL` watermark (LaunchKit reference
+  footer). Hash-anchor nav links converted to `<Link>` after lint caught 6
+  `no-html-link-for-pages` errors.
+- Verified: typecheck clean, lint 0 after the Link fix, tests 180/180, production build
+  clean. Visual verification (screenshots, intermittently flaky tool): hero, product
+  panel, and steps sections confirmed on-reference; FAQ (6 cards, 1 dark) + footer
+  wordmark (208px computed) confirmed via in-page JS when screenshots hung.
+- **Self-rating vs the 10/10 references: 8.5.** Known gaps to 10: no trusted-by/proof
+  strip (nothing dishonest to put there yet), footer + FAQ not yet eyeballed as pixels,
+  mobile pass not visually verified, hero could use a subtle texture/illustration touch.
+- Outcome: committed on `feat/premium-dashboard-ui`, pushed to update PR #5.
