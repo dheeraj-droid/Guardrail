@@ -360,3 +360,55 @@ reviewed before merge into the branch — not delegated to the agents' own self-
   else in v2) misbehaves live. Verified: `npm run typecheck` (clean), `npm run lint`
   (clean), `npm test` (260/260) and `npm run build` (clean) at the exact commit before
   push, per the diligence note above — not re-run after, since nothing changed post-push.
+
+**v2 Track N: live QStash verification, directly in production** (no branch — GitHub/
+Vercel/Upstash actions plus verification via `gh api`; closes the gap left open by the
+previous entry)
+- Context: the previous entry's merge decision explicitly deferred Track N's mandated
+  live QStash round-trip to production rather than a preview deployment. This entry is
+  that verification.
+- Triggered a real `pull_request.synchronize` webhook against production by pushing a
+  commit to the existing live test PR
+  ([guardrail-demo#1](https://github.com/dheeraj-droid/guardrail-demo/pull/1), the same
+  rig used for v1's own live verification). Vercel request logs showed
+  `[guardrail] concluding check run: failure — 4 broken frontend reference(s) to 2 schema
+  change(s)` logged from inside `/api/webhook/process` — confirmed against
+  `processPullRequest.ts:395` as a real code path, not a plausible-looking fake — proving
+  the full round-trip: `webhook/github` → `publishPipelineJob` → real QStash → callback →
+  `webhook/process` → pipeline → check run concluded. The resulting check run's
+  conclusion, title, and PR comment content (4 references across 3 files, correct
+  destructuring-alias resolution) matched v1's known-good output exactly — no regression
+  from the Track P rewrite.
+- Initially misread a pair of near-simultaneous `POST 202 /api/webhook/github` log lines
+  as a duplicate delivery of the same event; checking GitHub App → Recent Deliveries
+  showed they were actually two *different* event types (`pull_request.synchronize` +
+  `check_suite.requested`) that GitHub always sends together for one push — the handler's
+  event-type filter correctly no-ops the latter before it reaches the queue at all. Not a
+  finding — corrected before it was logged as one.
+- Real redelivery test: used GitHub's own Recent Deliveries → **Redeliver** on the
+  `pull_request.synchronize` delivery (twice, ~25s apart). Read `checks.ts`'s actual
+  `createInProgressCheckRun` implementation first rather than assuming behavior: it
+  dedupes only against **non-completed** runs (`run.status !== 'completed'`). Since the
+  original pipeline run completes in ~2s — far faster than either redelivery arrived —
+  neither redelivery found an in-progress run to reuse; each legitimately created its own
+  new check run. Verified via `gh api .../check-runs?filter=all` (the default `filter`
+  query param is `latest`, which would have silently hidden this — first poll without
+  `filter=all` showed only 1 run and would have produced a false "confirmed exactly one"
+  conclusion): **3 check runs total for one commit** (`86762630502`, `86809084455`,
+  `86809166947`), all concluding `failure` correctly. **Zero deliveries silently
+  dropped** — the actual property Track N exists to guarantee, and the one the rejected
+  `processed_deliveries` design would have violated. Separately confirmed:
+  `upsertPrComment`'s marker-based idempotent update held across all three runs — PR
+  comment count stayed at exactly 1, never duplicated.
+- Correction to the original acceptance sketch (`docs/PLAN_V2.md §3`, updated in the same
+  commit as this entry): "confirm exactly one check run results" was imprecise — dedup
+  only applies to the narrower in-flight-retry case (unit-tested, no live case observed
+  since real redeliveries arrive well after the ~2s completion window); the common
+  post-completion case is a redundant full re-evaluation, which is what was actually
+  observed and is the documented accepted cost, not a bug.
+- Outcome: **v2 is now both CI-verified and live-verified.** Docs updated:
+  `docs/PLAN_V2.md`'s Status line and §3 Acceptance sketch corrected to the precise,
+  live-confirmed behavior; this entry is the log record `docs/PLAN_V2.md` points to.
+  README.md's "not yet live-verified" caveat removed. No code changes — this is a
+  verification-only entry; `git revert -m 1 2312c01` remains the rollback path if
+  anything regresses later, unaffected by this entry.

@@ -24,19 +24,28 @@ isolated worktree at the exact merge commit before it was pushed. See
 URL-encoding bug) caught and fixed *before* the audit, not by it, and the merge entry
 itself for the conflict check against `main`'s unrelated branding/marketplace commits.
 
-**One item deliberately shipped unverified, by explicit decision — not papered over:**
-Track N's spec (`docs/specs/N-retry-queue.md`) and this doc's own §3 Acceptance sketch
-both mandate "one manual live verification against a real QStash sandbox... before
-shipping" — a forced redelivery, confirming exactly one check run results. That
-verification has **not** been performed; Track N's queue path is proven only against
-mocks. `QSTASH_TOKEN` is already configured in the production Vercel environment, so
-unlike the original plan (verify on a preview deployment first), **the queue path
-activates immediately on this merge and will be verified directly in production**, with
-the merge commit as the revert point if it misbehaves. Do the live QStash verification
-(forced redelivery, confirm exactly one check run results) and log the outcome in
-`docs/IMPLEMENTATION_LOG.md` exactly like v1's live-verification entry — 260 green tests
-is CI-verified, not live-verified, and those are not the same claim. If the queue
-misbehaves in production, `git revert -m 1 2312c01` cleanly undoes this merge.
+**Track N's live QStash verification: DONE, 2026-07-13, directly in production** (full
+detail in `docs/IMPLEMENTATION_LOG.md`'s entry of the same date). Confirmed via real
+GitHub App webhook deliveries and Vercel request logs against
+[guardrail-demo#1](https://github.com/dheeraj-droid/guardrail-demo/pull/1): the queue
+path genuinely fires (`[guardrail] concluding check run: ...` logged from inside
+`/api/webhook/process`, invoked by a real QStash callback, not `after()`), and two
+GitHub-triggered redeliveries of the same event were each fully evaluated — no delivery
+was silently dropped. The result is a **more precise finding than the original
+acceptance sketch's "confirm exactly one check run"**: because
+`createInProgressCheckRun` only dedupes against **non-completed** runs (see File 1 in
+`docs/specs/N-retry-queue.md`), a redelivery arriving *after* the original run already
+completed (the common case in practice — the pipeline finishes in ~2s, redeliveries here
+landed tens of seconds later) legitimately produces its own new, separate check run, not
+a reused one. Three deliveries of the same commit produced three check runs, all
+concluding the correct verdict — matching the design's own documented tradeoff
+(`docs/specs/N-retry-queue.md`: "a redundant full pipeline re-evaluation is the accepted
+cost, not a dropped PR evaluation") rather than the acceptance sketch's looser "exactly
+one check run" phrasing, which described only the narrower in-flight-retry case.
+Separately, and unaffected by the above: `upsertPrComment`'s marker-based idempotent
+comment update held perfectly — the PR comment count stayed at exactly 1 across all
+three pipeline runs. **v2 is now both CI-verified and live-verified.** Rollback path
+if anything regresses: `git revert -m 1 2312c01`.
 
 ## 0. Ground rules carried over from v1
 
@@ -237,12 +246,18 @@ sees success and won't redeliver even if the deferred work later dies silently.
   test: existing e2e fixture unchanged).
 - `QSTASH_TOKEN` set → route publishes and acks only after publish succeeds; `process`
   route processes the job and concludes the check run.
-- Same delivery redelivered twice, via either path → `createInProgressCheckRun` reuses
-  the existing in-progress run rather than creating a duplicate; a redundant full
-  pipeline re-evaluation is the accepted cost, not a dropped PR.
-- One **manual** live verification against a real QStash sandbox before shipping (mirror
-  the live-verification entry already in `IMPLEMENTATION_LOG.md` for v1 — unit/e2e tests
-  mock the publish call; only a real run proves the callback round-trip).
+- Redelivery while the original run is still non-completed → `createInProgressCheckRun`
+  reuses that in-progress run rather than creating a duplicate (unit-tested against a
+  mock; no live case observed, since the pipeline completes in ~2s and real-world
+  redeliveries arrive much later than that).
+- Redelivery after the original run has already completed → a new, separate check run is
+  created and the full pipeline re-runs — a redundant evaluation is the accepted cost,
+  never a dropped PR. **Live-confirmed 2026-07-13**: two GitHub-triggered redeliveries of
+  the same event each produced their own new check run (3 total for one commit), all
+  concluding the correct verdict; `upsertPrComment`'s comment-level idempotency held
+  throughout (comment count stayed at 1). Full detail in `docs/IMPLEMENTATION_LOG.md`.
+- ~~One **manual** live verification against a real QStash sandbox before shipping~~ —
+  **done**, in production rather than a sandbox, 2026-07-13 (see above).
 
 ## 4. Track O — Multi-frontend fan-out
 
