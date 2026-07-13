@@ -10,11 +10,30 @@
 // THIN shell: verify HMAC (Law 4), acknowledge 202 immediately, defer the pipeline
 // (Law 5). Zero business logic — everything else is delegated to verifyGithubSignature
 // (Track A) and processPullRequest (Track H).
+//
+// Track N (docs/PLAN_V2.md §3, docs/specs/N-retry-queue.md File 4) adds, opt-in /
+// additive: when QSTASH_TOKEN is configured, publish to a durable queue instead of the
+// after() fallback. A deployment that never sets QSTASH_TOKEN keeps today's after()
+// behavior byte-for-byte.
+//
+// Idempotency lives ENTIRELY in createInProgressCheckRun (src/lib/github/checks.ts) —
+// there is deliberately no delivery-id claim table here. An earlier draft added one
+// (processed_deliveries) but it had a fatal flaw: claiming the delivery BEFORE the work
+// is durably handed off means a claim survives even when the work doesn't -- a publish
+// failure (which returns 502 specifically so GitHub retries) or a process death mid-
+// after() both leave a committed claim with no completed work behind it, so the retry
+// GitHub sends to recover is silently swallowed by that same claim. There is no safe
+// point to release it: the queue path could release on a caught publish failure, but
+// the after() path can't release anything after the process has already died.
+// createInProgressCheckRun's idempotency has no such failure mode -- an attempt that
+// created nothing lets a retry proceed and create fresh; one that created an in-flight
+// run gets it reused -- so it is the sole, delivery-mechanism-agnostic mechanism.
 import { after } from 'next/server';
-import { loadEnv } from '@/config/env';
+import { loadEnv, isQueueConfigured, loadQueueEnv, type QueueEnv } from '@/config/env';
 import { verifyGithubSignature } from '@/lib/crypto/verifySignature';
 import { createDbClient } from '@/lib/db/supabase';
 import { getInstallationClient } from '@/lib/github/client';
+import { publishPipelineJob } from '@/lib/queue/qstash';
 import {
   processPullRequest,
   type PipelineDeps,
@@ -32,6 +51,18 @@ function buildDeps(): PipelineDeps {
 }
 
 /**
+ * Module-private — undefined when no queue is configured; never throws (Track N).
+ * `loadQueueEnv()` itself throws when unconfigured, so this file must never call it
+ * unconditionally.
+ */
+function tryLoadQueueEnv(): QueueEnv | undefined {
+  if (!isQueueConfigured()) {
+    return undefined;
+  }
+  return loadQueueEnv();
+}
+
+/**
  * Testing seam (spec "Testing seam" section). `after()` from next/server cannot run in
  * vitest, so the handler takes optional injection points. Prod wiring (route.ts) uses
  * every default.
@@ -40,9 +71,12 @@ export function makePostHandler(overrides?: {
   defer?: (task: () => Promise<void>) => void;
   deps?: PipelineDeps;
   pipeline?: typeof processPullRequest;
+  queueEnv?: QueueEnv;
+  publish?: typeof publishPipelineJob;
 }): (req: Request) => Promise<Response> {
   const defer = overrides?.defer ?? ((task: () => Promise<void>) => after(task));
   const pipeline = overrides?.pipeline ?? processPullRequest;
+  const publish = overrides?.publish ?? publishPipelineJob;
 
   return async function POST(req: Request): Promise<Response> {
     // 1. RAW body FIRST — before any parsing (Law 4).
@@ -106,9 +140,28 @@ export function makePostHandler(overrides?: {
       baseRef: payload.pull_request.base.ref,
     };
 
-    // 8. Defer the pipeline — never await before responding (Law 5). buildDeps() is
-    //    called INSIDE the deferred callback, never at module top level or eagerly in
-    //    the request path (keeps imports side-effect free for tests/builds).
+    // 8. Branch on queue configuration (Track N). Queue path: await only the fast
+    //    publish call (never the pipeline itself — Law 5 still applies), ack 202 only
+    //    after publish succeeds so a publish failure surfaces as a 5xx GitHub will
+    //    retry, rather than acking into a job that never got enqueued.
+    const queueEnv = overrides?.queueEnv ?? tryLoadQueueEnv();
+    if (queueEnv) {
+      try {
+        await publish(queueEnv, new URL('/api/webhook/process', req.url).toString(), input);
+      } catch (error) {
+        console.error(
+          '[guardrail] queue publish failed:',
+          error instanceof Error ? error.message : String(error),
+        );
+        return Response.json({ error: 'failed to enqueue' }, { status: 502 });
+      }
+      return Response.json({ queued: true }, { status: 202 });
+    }
+
+    // Fallback: no queue configured — today's v1 behavior, byte-for-byte. Never await
+    // before responding (Law 5). deps resolved lazily inside the deferred callback,
+    // exactly as pre-Track-N, since there is no longer an earlier awaited step (the
+    // delivery claim) that required resolving it eagerly.
     defer(() => pipeline(overrides?.deps ?? buildDeps(), input));
 
     // 9. Immediate 202 Accepted (SRD).
