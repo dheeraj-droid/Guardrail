@@ -12,28 +12,31 @@ listed as out-of-scope-for-v1, now scoped in for v2:
 4. **Multi-frontend fan-out** (`project_links.backend_repo_id` is `UNIQUE` today — one
    frontend per backend, monorepo aside).
 
-**Status:** implementation complete on branch `feat/v2`, not yet merged to `main`. All
-four waves (V0 → V1 → V2 → V3) landed: types/env/migrations, the four parallel tracks
-(L, M, N, O), the Track P pipeline-integration rewrite, and a Wave V3 spec-auditor pass
-against all six track specs plus every CLAUDE.md Law — zero code defects found. Gate:
-`npm run typecheck` clean, `npm run lint` clean, 260/260 tests green across 30 files (up
-from v1's 180/24). See `docs/IMPLEMENTATION_LOG.md` for wave-by-wave outcomes, including
-the three real defects (a rename false-positive, a QStash delivery-claim idempotency
-architecture flaw, a QStash URL-encoding bug) caught and fixed *before* the audit, not by
-it.
+**Status:** implementation complete and **merged into `main`** (merge commit `2312c01`,
+2026-07-13). All four waves (V0 → V1 → V2 → V3) landed: types/env/migrations, the four
+parallel tracks (L, M, N, O), the Track P pipeline-integration rewrite, and a Wave V3
+spec-auditor pass against all six track specs plus every CLAUDE.md Law — zero code
+defects found. Gate: `npm run typecheck` clean, `npm run lint` clean, 260/260 tests green
+across 30 files (up from v1's 180/24), plus a clean `npm run build` verified in an
+isolated worktree at the exact merge commit before it was pushed. See
+`docs/IMPLEMENTATION_LOG.md` for wave-by-wave outcomes, including the three real defects
+(a rename false-positive, a QStash delivery-claim idempotency architecture flaw, a QStash
+URL-encoding bug) caught and fixed *before* the audit, not by it, and the merge entry
+itself for the conflict check against `main`'s unrelated branding/marketplace commits.
 
-**One outstanding item before this is production-ready, deliberately not papered over:**
+**One item deliberately shipped unverified, by explicit decision — not papered over:**
 Track N's spec (`docs/specs/N-retry-queue.md`) and this doc's own §3 Acceptance sketch
 both mandate "one manual live verification against a real QStash sandbox... before
 shipping" — a forced redelivery, confirming exactly one check run results. That
 verification has **not** been performed; Track N's queue path is proven only against
-mocks. `feat/v2` is deliberately **not merged to `main`** yet for this reason (Vercel
-auto-deploys from `main`) — merging now would put the rewritten pipeline in front of live
-PRs before that round-trip is confirmed. Do the live QStash verification (or a
-smoke-test PR against a real deployment, mirroring v1's own `docs/confirm-live-e2e-run`
-precedent) before merging, and log it in `docs/IMPLEMENTATION_LOG.md` exactly like v1's
-live-verification entry — 260 green tests is CI-verified, not live-verified, and those
-are not the same claim.
+mocks. `QSTASH_TOKEN` is already configured in the production Vercel environment, so
+unlike the original plan (verify on a preview deployment first), **the queue path
+activates immediately on this merge and will be verified directly in production**, with
+the merge commit as the revert point if it misbehaves. Do the live QStash verification
+(forced redelivery, confirm exactly one check run results) and log the outcome in
+`docs/IMPLEMENTATION_LOG.md` exactly like v1's live-verification entry — 260 green tests
+is CI-verified, not live-verified, and those are not the same claim. If the queue
+misbehaves in production, `git revert -m 1 2312c01` cleanly undoes this merge.
 
 ## 0. Ground rules carried over from v1
 

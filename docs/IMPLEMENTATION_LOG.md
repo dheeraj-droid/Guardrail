@@ -299,10 +299,64 @@ reviewed before merge into the branch — not delegated to the agents' own self-
 - Gate at every wave boundary: `npm run typecheck`, `npm run lint`, `npm test` — final
   state 260/260 tests green across 30 files (up from v1's 180/24), typecheck clean, lint
   clean.
-- **Outcome: intentionally NOT merged to `main`.** `feat/v2` is implementation-complete
-  and CI-verified, but Track N's mandated live QStash verification hasn't been run, and
-  Vercel auto-deploys from `main` — merging now would put the rewritten pipeline in front
-  of real production PRs before that round-trip is confirmed. Pushed `feat/v2` to
-  `origin/feat/v2`; the merge-to-`main` decision is deferred until the live QStash
-  verification (or an equivalent smoke-test PR, mirroring the `docs/confirm-live-e2e-run`
-  entry above) is done and logged here.
+- **Outcome (as of this wave): intentionally NOT merged to `main`.** `feat/v2` is
+  implementation-complete and CI-verified, but Track N's mandated live QStash
+  verification hasn't been run, and Vercel auto-deploys from `main` — merging now would
+  put the rewritten pipeline in front of real production PRs before that round-trip is
+  confirmed. Pushed `feat/v2` to `origin/feat/v2`; the merge-to-`main` decision is
+  deferred until the live QStash verification (or an equivalent smoke-test PR, mirroring
+  the `docs/confirm-live-e2e-run` entry above) is done and logged here. **Superseded
+  2026-07-13 — see the entry below: merged by explicit user decision before that
+  verification, with production itself as the verification environment.**
+
+**v2 merge to `main`** (plumbing merge commit `2312c01`, no branch — see note)
+- Context: after being walked through the live-QStash-verification setup (Vercel preview
+  deployment, temporary webhook repoint, forced redelivery), the user reported being
+  unable to complete it and, after weighing the alternatives (wait, or use a disposable
+  test App), made an explicit, informed decision: merge now, verify the queue path
+  directly in production, and revert if it misbehaves. `QSTASH_TOKEN` was confirmed
+  already configured in the **Production** Vercel environment (not Preview) at decision
+  time — flagged to the user before proceeding, since it means the queue activates
+  immediately on deploy rather than staying dormant.
+- Pre-merge diligence (the user explicitly asked for a conflict check first):
+  `git fetch` revealed `main` had moved 15 commits ahead of where `feat/v2` branched —
+  13 local + 2 not-yet-fetched from `origin/main` (`docs/Privacy.md` and, notably, a new
+  `src/app/api/github/marketplace/route.ts`, a plausible collision point with Track N's
+  new `src/app/api/webhook/*` routes). Checked: no path overlap between the two; the only
+  file both `feat/v2` and `main`'s branding commits touched was `README.md`, at
+  non-overlapping line ranges (main added a wordmark header at the top, `feat/v2` added a
+  Status paragraph further down).
+- `git merge-tree --write-tree` (git 2.43, conflict-free dry-run) against the actual
+  `origin/main` tip confirmed a clean, conflict-free merge before anything was written.
+- Built the merge commit via `git commit-tree` (not `git merge`) because `main` was
+  already checked out in a different worktree (the user's primary checkout) — checking it
+  out here too isn't possible. This also meant the merge was never pushed as its own
+  named branch; `feat/v2`'s tip is preserved as the merge commit's second parent.
+- **Verified the merge commit itself before pushing**, not just the two branches
+  separately: `git worktree add --detach` at the candidate merge SHA, `npm install`,
+  then `npm run typecheck` (clean), `npm run lint` (clean), `npm test` (260/260, 30
+  files), and `npm run build` (production build — catches Next.js route-conflict/build
+  issues `tsc --noEmit` wouldn't; confirmed `/api/webhook/process` and
+  `/api/github/marketplace` both compile as separate routes with no collision). Removed
+  the temp worktree after.
+- Pushed the verified commit directly to `origin/main` by SHA (`git push origin
+  <sha>:refs/heads/main`), intentionally not touching any local branch ref — the user's
+  primary checkout's local `main` was left exactly as it was, to update via a normal
+  `git pull` on their own schedule rather than being silently rewritten underneath them.
+  Deleted `origin/feat/v2` per Law 16 once its content was confirmed merged.
+- Follow-up docs fix in the same sitting (branch `docs/log-v2-merge`, off the new
+  `origin/main`): the merge itself had carried forward this doc's now-stale "not yet
+  merged" language (auto-merged cleanly alongside `main`'s wordmark header, since they
+  touched different line ranges) — corrected in `README.md`, `docs/PLAN.md`, and
+  `docs/PLAN_V2.md`'s Status lines, plus test-count references (`180`→`260`,
+  `24 files`→`30 files`) in `README.md` and `docs/DEPLOY.md`. Historical log entries
+  above that cite `180`/`177` are left as-is — they're accurate records of what was true
+  when written, not current-state claims.
+- **Outcome: merged to `origin/main` (production auto-deploys from `main`).** The Track N
+  live QStash verification described in the previous entry has **still not been
+  performed** — this merge does not close that gap, it relocates where the verification
+  happens (production, not a preview deployment), by explicit user risk-acceptance
+  decision. `git revert -m 1 2312c01` is the rollback path if the queue path (or anything
+  else in v2) misbehaves live. Verified: `npm run typecheck` (clean), `npm run lint`
+  (clean), `npm test` (260/260) and `npm run build` (clean) at the exact commit before
+  push, per the diligence note above — not re-run after, since nothing changed post-push.
