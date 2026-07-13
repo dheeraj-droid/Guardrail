@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import type { AccessibleRepo } from '@/lib/github/userRepos';
 import type { ProjectLinkRow } from '@/lib/db/linkAdmin';
 
@@ -38,6 +38,18 @@ export function LinkManager({ login }: LinkManagerProps) {
   const [openapiFilePath, setOpenapiFilePath] = useState('');
   const [frontendSrcDirectory, setFrontendSrcDirectory] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  // Transient success feedback: "Saved ✓" on the button (~1.5s) and a one-shot
+  // highlight flash on the freshly created row.
+  const [saved, setSaved] = useState(false);
+  const [justCreatedId, setJustCreatedId] = useState<number | null>(null);
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  useEffect(() => {
+    const pending = timers.current;
+    return () => {
+      for (const t of pending) clearTimeout(t);
+    };
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -129,6 +141,10 @@ export function LinkManager({ login }: LinkManagerProps) {
       setOpenapiFilePath('');
       setFrontendSrcDirectory('');
       await load();
+      setJustCreatedId(backendId);
+      setSaved(true);
+      timers.current.push(setTimeout(() => setSaved(false), 1500));
+      timers.current.push(setTimeout(() => setJustCreatedId(null), 1300));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'failed to save the link');
     } finally {
@@ -181,10 +197,14 @@ export function LinkManager({ login }: LinkManagerProps) {
         </div>
 
         {loading ? (
-          <p className="loading-row">
-            <span className="spinner" aria-hidden="true" />
-            Loading your repositories…
-          </p>
+          <div className="skeleton-rows">
+            <span className="sr-only" role="status">
+              Loading your repositories…
+            </span>
+            <span className="skeleton-row" aria-hidden="true" />
+            <span className="skeleton-row" aria-hidden="true" />
+            <span className="skeleton-row" aria-hidden="true" />
+          </div>
         ) : links.length === 0 ? (
           <div className="empty-state">
             <span className="empty-state-icon" aria-hidden="true">
@@ -209,7 +229,12 @@ export function LinkManager({ login }: LinkManagerProps) {
               </thead>
               <tbody>
                 {links.map((link) => (
-                  <tr key={link.id}>
+                  <tr
+                    key={link.id}
+                    className={
+                      link.backend_repo_id === justCreatedId ? 'row-created' : undefined
+                    }
+                  >
                     <td className="cell-repo">{repoFullName(link.backend_repo_id)}</td>
                     <td className="cell-repo">{repoFullName(link.frontend_repo_id)}</td>
                     <td>
@@ -322,8 +347,12 @@ export function LinkManager({ login }: LinkManagerProps) {
           </div>
 
           <div className="form-actions">
-            <button type="submit" className="button button-primary" disabled={submitting}>
-              {submitting ? 'Saving…' : 'Save link'}
+            <button
+              type="submit"
+              className={`button button-primary${saved ? ' is-saved' : ''}`}
+              disabled={submitting}
+            >
+              {submitting ? 'Saving…' : saved ? 'Saved ✓' : 'Save link'}
             </button>
           </div>
         </form>
