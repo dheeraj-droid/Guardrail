@@ -8,13 +8,13 @@ takes you from an empty setup to a passing/failing check on a real PR.
 Prerequisites: the repo builds locally (`npm install && npm run build` — should end with
 `✓ Compiled successfully`), Node ≥ 20, and the `gh` CLI authenticated.
 
-This runbook describes deploying `main` (v1). v2 (branch `feat/v2`: `$ref` resolution,
-renamed-field detection, an optional QStash retry queue, multi-frontend fan-out) is
-implemented and spec-audited but not yet merged — see `docs/PLAN_V2.md`'s Status line.
-When it merges, deploying it needs no new steps for the default (queue-unconfigured)
-path; enabling the optional retry queue will add three more env vars (`QSTASH_TOKEN`,
+This runbook describes deploying `main`, which now includes v2 (`$ref` resolution,
+renamed-field detection, an optional QStash retry queue, multi-frontend fan-out — see
+`docs/PLAN_V2.md`). Deploying it needs no new steps for the default (queue-unconfigured)
+path; enabling the optional retry queue adds three more env vars (`QSTASH_TOKEN`,
 `QSTASH_CURRENT_SIGNING_KEY`, `QSTASH_NEXT_SIGNING_KEY`) documented in
-`docs/specs/N-retry-queue.md`.
+`docs/specs/N-retry-queue.md` — that spec's Manual verification section describes the
+live sandbox round-trip to run before trusting the queue path in production.
 
 ---
 
@@ -234,7 +234,7 @@ Advanced → Recent Deliveries → **Redeliver** re-sends a payload without open
 `npm run dev` serves the route at `http://localhost:3000/api/webhook/github`, but the
 pipeline makes real GitHub/Supabase calls, so a meaningful local run needs real creds in
 `.env` plus a tunnel (e.g. `cloudflared`/`ngrok`) so GitHub can reach you — point the App's
-webhook URL at the tunnel. For logic changes, the 180-test suite (`npm test`) already
+webhook URL at the tunnel. For logic changes, the 260-test suite (`npm test`) already
 exercises the full pipeline against fakes, including the end-to-end verdict matrix in
 `tests/integration/pipeline.e2e.test.ts` — that's the fast inner loop; the real PR is the
 final confirmation.
