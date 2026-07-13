@@ -385,3 +385,32 @@ merged)
   exists). Visually confirmed live via the browser: both the header and footer render the
   coral shield mark correctly next to "Guardrail," CTA band and footer layout unaffected.
 - Outcome: committed on `feat/premium-dashboard-ui`, pushed to update PR #5.
+
+## 2026-07-13
+
+**Animated aurora background** (`feat/premium-dashboard-ui`, PR #5)
+- User explicitly requested a moving, colorful background ("it needs to have life,"
+  Notion as the reference) — this deliberately supersedes the earlier de-slop decision
+  to hold one static gradient. What was slop as a default is now a defended choice; the
+  discipline moved into *how* it's built instead of whether it exists.
+- `globals.css`: replaced the static `body::before` radial with an `.aurora` layer —
+  three large (52rem) heavily-blurred (90px) radial blobs: indigo `#6169f5` (the UI
+  accent), coral `#E9564A` (the logo hue — ties the brand mark into the page), and a
+  cyan. Each drifts on its own transform-only keyframe loop (`aurora-a/b/c`) with
+  near-co-prime durations (47s/59s/37s, `alternate`) so the composition never visibly
+  repeats. GPU-safe by construction: `transform` is the only animated property,
+  `will-change: transform`, no layout/paint per frame. Blob opacity is low and the
+  film-grain layer sits above them, so text contrast is unaffected. Reduced-motion:
+  the global animation kill-switch freezes the drift, plus an explicit
+  `.aurora span { animation: none; opacity: 0.7 }` so the frozen composition reads as
+  soft ambient light, not three spotlights.
+- `layout.tsx`: added the `.aurora` container (3 empty spans, `aria-hidden`) behind the
+  grain layer.
+- Verified: `npm run typecheck` clean, `npm run lint` 0 problems, `npm run build`
+  succeeds. Visually confirmed via a real browser screenshot: indigo/coral/cyan wash
+  visible behind the hero, text legible. Motion confirmed programmatically (the
+  screenshot tool went stuck again after the first frame): sampled a blob's computed
+  `transform` twice 2s apart via in-page JS — matrix values drifted
+  (translate 0.18→7.29px, scale 1.0002→1.0081) and `document.getAnimations()` reported
+  all three aurora animations plus the existing `rise` entrances running.
+- Outcome: committed on `feat/premium-dashboard-ui`, pushed to update PR #5.

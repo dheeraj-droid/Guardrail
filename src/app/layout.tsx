@@ -68,6 +68,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable} ${fraunces.variable}`}>
       <body>
+        <div className="aurora" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </div>
         <div className="page-grain" aria-hidden="true" />
         <header className="site-header">
           <div className="container site-header-inner">
