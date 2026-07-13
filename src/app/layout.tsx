@@ -1,25 +1,129 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
+import { Inter, JetBrains_Mono } from 'next/font/google';
 import Link from 'next/link';
 import './globals.css';
 
+// next/font is part of `next` — no new dependency (CLAUDE.md Law 13). Self-hosted at
+// build time, exposed as CSS variables consumed in globals.css.
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-sans',
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-mono',
+});
+
+// The real brand mark (docs/assets/guardrail-logo.svg) — coral shield, white checkmark.
+// Inlined rather than an <img> so it stays crisp at 22px with no extra request.
+function BrandMark() {
+  return (
+    <svg
+      className="brand-mark"
+      width="22"
+      height="22"
+      viewBox="0 0 512 512"
+      fill="none"
+      aria-hidden="true"
+    >
+      <path
+        d="M166 132 L346 132 Q366 132 366 152 L366 244 Q366 330 256 390 Q146 330 146 244 L146 152 Q146 132 166 132 Z"
+        fill="#E9564A"
+      />
+      <path
+        d="M208 250 L240 284 L316 200"
+        fill="none"
+        stroke="#FFFFFF"
+        strokeWidth="34"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export const metadata: Metadata = {
-  title: 'Guardrail',
-  description: 'Automated API contract enforcement across repositories.',
+  title: 'Guardrail — Stop breaking API changes before they merge',
+  description:
+    'Guardrail intercepts backend pull requests that change an OpenAPI contract, scans your linked frontend for code that would break, and blocks the merge before it ships.',
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
       <body>
         <header className="site-header">
-          <div className="container">
+          <div className="container site-header-inner">
             <Link href="/" className="brand">
-              Guardrail
+              <BrandMark />
+              <span>Guardrail</span>
             </Link>
+            <nav className="site-nav" aria-label="Primary">
+              <Link href="/#how-it-works">How it works</Link>
+              <Link href="/#features">Why Guardrail</Link>
+              <Link href="/#faq">FAQ</Link>
+              <a
+                href="https://github.com/dheeraj-droid/Guardrail"
+                target="_blank"
+                rel="noreferrer"
+              >
+                GitHub
+              </a>
+              <a className="button button-primary" href="/api/auth/login">
+                Sign in
+              </a>
+            </nav>
           </div>
         </header>
-        <main className="container">{children}</main>
+        <main>{children}</main>
+        <footer className="site-footer">
+          <div className="container site-footer-inner">
+            <div>
+              <div className="brand">
+                <BrandMark />
+                <span>Guardrail</span>
+              </div>
+              <p className="site-footer-note">
+                Contract enforcement for teams that ship backend and frontend in lockstep.
+              </p>
+              <p className="site-footer-copy">
+                Built with the GitHub Checks API · {new Date().getFullYear()}
+              </p>
+            </div>
+            <div className="footer-cols">
+              <div className="footer-col">
+                <span className="footer-col-title">Product</span>
+                <Link href="/#how-it-works">How it works</Link>
+                <Link href="/#features">Why Guardrail</Link>
+                <Link href="/#faq">FAQ</Link>
+              </div>
+              <div className="footer-col">
+                <span className="footer-col-title">Resources</span>
+                <a
+                  href="https://github.com/dheeraj-droid/Guardrail"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  GitHub
+                </a>
+                <a
+                  href="https://github.com/dheeraj-droid/guardrail-demo"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Live demo repo
+                </a>
+              </div>
+            </div>
+          </div>
+          <div className="footer-wordmark" aria-hidden="true">
+            GUARDRAIL
+          </div>
+        </footer>
       </body>
     </html>
   );
