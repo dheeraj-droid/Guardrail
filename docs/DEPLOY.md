@@ -8,6 +8,14 @@ takes you from an empty setup to a passing/failing check on a real PR.
 Prerequisites: the repo builds locally (`npm install && npm run build` — should end with
 `✓ Compiled successfully`), Node ≥ 20, and the `gh` CLI authenticated.
 
+This runbook describes deploying `main` (v1). v2 (branch `feat/v2`: `$ref` resolution,
+renamed-field detection, an optional QStash retry queue, multi-frontend fan-out) is
+implemented and spec-audited but not yet merged — see `docs/PLAN_V2.md`'s Status line.
+When it merges, deploying it needs no new steps for the default (queue-unconfigured)
+path; enabling the optional retry queue will add three more env vars (`QSTASH_TOKEN`,
+`QSTASH_CURRENT_SIGNING_KEY`, `QSTASH_NEXT_SIGNING_KEY`) documented in
+`docs/specs/N-retry-queue.md`.
+
 ---
 
 ## Step 1 — Create the GitHub App

@@ -170,6 +170,37 @@ open" above are now all resolved.
   `npm run typecheck` (clean), `npm run lint` (0 problems), `npm test` (24 files / 180
   tests passing) before pushing.
 
+**Docs: v2 implementation plan** (`docs/plan-v2`, merged to `main`)
+- Added `docs/PLAN_V2.md`, planning the four items `PLAN.md §7` listed as out-of-scope
+  for v1: $ref resolution (repo-relative file refs only — URL refs rejected on SSRF
+  grounds, not deferred), renamed-field detection (additive `BreakingChange.renamedTo`,
+  the only frozen-type edit in the whole plan), retries/queues beyond `after()` (opt-in
+  via a new `QSTASH_TOKEN`-gated `loadQueueEnv()`, no new npm dependency, plus a
+  `processed_deliveries` idempotency table — **later rejected and removed during Wave V1
+  implementation, see the Wave V1 entry below; this line is left as originally written
+  to keep the log an accurate record of what was planned at the time**), and
+  multi-frontend fan-out (drops
+  `project_links.backend_repo_id`'s solo `UNIQUE`, loops `processPullRequest`'s existing
+  per-link logic under bounded concurrency rather than assuming a shared spec across
+  links).
+- Grounded every design decision in the actual current source (`processPullRequest.ts`,
+  `flattenSchema.ts`, `diffSchemas.ts`, `checks.ts`, `comments.ts`, `concurrency.ts`,
+  `env.ts`, the two existing migrations) rather than speculating — e.g. corrected an
+  initial assumption that the OpenAPI diff could be computed once and fanned out across
+  frontend links; each `project_links` row can set its own `openapi_file_path`, so the
+  plan instead fans out the whole existing per-link pipeline as one unit.
+  Laid out a 4-wave structure (V0 types/env/migrations → V1 four parallel tracks,
+  verified file-disjoint → V2 single-agent pipeline.ts integration → V3 verification),
+  proposed (not yet adopted) Law amendments, and flagged two open decisions for sign-off:
+  rejecting URL-based `$ref` resolution, and keeping per-frontend check runs/comments
+  independent rather than aggregating multi-frontend results into one verdict.
+- Scope confirmed with the user via `AskUserQuestion` before drafting: all four v1-backlog
+  items in, no additional new-scope items.
+- No `docs/specs/L-*.md` .. `O-*.md` files written yet — authoring those at v1's spec
+  fidelity is the deliberate next step, not part of this entry.
+- Outcome: docs-only change, no code/tests affected; `npm run typecheck` and `npm run
+  lint` re-verified clean before pushing.
+
 **Docs: confirm live end-to-end run, drop the stale "not yet run" caveat** (`docs/confirm-live-e2e-run`, merged to `main`)
 - The prior entry's README caveat ("not yet run end-to-end against a live deployment on a
   real PR") turned out to be false: the live deployment (`guardrail-coral.vercel.app`),
@@ -186,3 +217,92 @@ open" above are now all resolved.
   actually verified live, linking the deployment and demo repo.
 - Outcome: merged `--no-ff`, branch deleted, pushed to `origin/main`. Verified
   `npm run typecheck` (clean) and `npm run lint` (0 problems) before pushing.
+
+## 2026-07-11
+
+**v2 build, Waves V0–V3** (branch `feat/v2`, pushed to `origin/feat/v2`, **not merged to
+`main`** — see outcome note). Orchestrated as background `module-builder` (Sonnet) agents
+per track, one per wave, with every substantive design/security decision manually
+reviewed before merge into the branch — not delegated to the agents' own self-reports.
+
+- **Wave V0** (`42d6df6`) — sequential, single agent: `BreakingChange.renamedTo` (the only
+  frozen-type edit in all of v2, Law 1), `loadQueueEnv()`/`QueueEnv` (mirrors
+  `loadDashboardEnv()`), `maxRefResolutionDepth`/`maxFrontendLinksConcurrency` on `Env`,
+  `0005_multi_frontend.sql`. 3 test files outside V0's own scope had `Env` literals
+  missing the two new fields — fixed directly (mechanical), not by respawning the agent.
+- **Wave V1** (`b70e2a0`, `31cff56`, `4edccdd`, `4649182`) — 4 parallel tracks, verified
+  file-disjoint per `PLAN_V2.md §5` before spawning:
+  - **L** (`resolveRefs.ts`, `fetchExternalRefs.ts`) — cross-file `$ref` resolution, file
+    refs only (URL refs rejected on SSRF grounds, `isRelativeFileRef()` rejects any
+    `scheme://` prefix). Finished cleanly; its background agent hit a 600s no-progress
+    watchdog after the work was already done — verified via `git status` and committed
+    rather than respawned.
+  - **M** (`detectRenames.ts`) — renamed-field hint on `DELETED` changes. **Caught a real
+    false positive during review**: the original same-parent/same-type heuristic flagged
+    the shared test fixture's unrelated `phoneNumber`→`middleName` pair as a rename. Fixed
+    by adding a `namesLikelyRelated()` name-relation gate (substring or shared camelCase
+    word) before accepting a rename candidate; verified against the exact fixture pair
+    that was wrong.
+  - **N** (`qstash.ts`, `webhook/process/route.ts`, `checks.ts` idempotency) — opt-in
+    QStash retry queue. **Two real defects caught and fixed before merge, not found
+    later by audit:** (1) the original design claimed a delivery id at ingress before
+    handing work off durably — a `publish()` failure or `after()` crash left the claim
+    committed with no safe release path, silently swallowing the exact retries it existed
+    to protect. Root-caused, then removed entirely; the sole idempotency mechanism is now
+    `createInProgressCheckRun` reusing an existing non-completed run for the same
+    repo+sha+name (see `PLAN_V2.md §3`'s twice-revised design history). (2) the publish
+    URL was building `` `.../v2/publish/${encodeURIComponent(processUrl)}` `` — verified
+    against Upstash's actual published curl example that the destination must be passed
+    raw; fixed. First implementation attempt wrote nothing before a 600s watchdog fired;
+    respawned with an explicit "do not call the advisor tool" instruction and it
+    succeeded on the second attempt.
+  - **O** (`projectLinks.ts`) — added plural `getProjectLinksByBackendRepoId`, extracted
+    shared `toProjectLink()` helper (behavior-preserving). Clean.
+  - Cross-track regression: Track N's new check-run idempotency `GET` call broke 11/12
+    tests in `tests/pipeline/processPullRequest.test.ts` because the fake-Octokit route
+    table didn't register the new route. Track N's agent correctly identified this,
+    correctly left it unfixed (outside its file scope), and it was fixed directly in both
+    the test file and `tests/helpers/fakeGithub.ts`.
+- **Wave V2** (`5d5dd05`, Track P) — sequential pipeline integration. Rewrote
+  `processPullRequest.ts` around a `LinkOutcome` union and a private `evaluateLink()` that
+  never throws; new pure `aggregateVerdicts.ts` (worst-wins conclusion priority,
+  `failure` > `neutral` > `success`); `formatComment.ts` gained a multi-link composer.
+  This agent was killed mid-task once (resumed by the user, work recovered intact from
+  `git status`) and separately hit an external session-limit API error after resuming
+  (recovered again — real, substantial work was already sitting uncommitted). Before
+  committing: manually verified the **degeneracy guarantee** (a single-link outcome
+  array must produce byte-identical `{conclusion, title, summary, shouldComment}` to
+  pre-v2 behavior) by reading `aggregateVerdicts.ts`'s `describe()` strings against the
+  original v1 inline early-return text for all 7 `LinkOutcome` kinds, and confirmed
+  `formatComment.ts`'s `buildSection()` extraction was behavior-preserving via diff.
+  Also fixed, outside Spec P's file list but load-bearing: `tests/helpers/fakeGithub.ts`'s
+  `makeDb()` rewritten to a thenable query-builder shape to match Track O's plural lookup
+  (which awaits `.select().eq()` directly, never calls `.maybeSingle()`) — without this
+  fix the e2e suite's 5 tests passed vacuously (link never found), not for the reason
+  they claimed to.
+- **Wave V3** — spec-auditor pass (read-only, adversarial) against all six track specs
+  and every CLAUDE.md Law, cross-checked against `PLAN_V2.md §1-§4`'s acceptance
+  sketches. **Zero code defects found.** Confirmed: Law 1 (only `renamedTo` touches
+  frozen types), Law 2 (pure files have zero IO/Octokit/Supabase/next/env imports), Law 4
+  (`verifyQStashSignature` uses `timingSafeEqual`), Law 5 (queue branch awaits `publish`
+  before acking), Law 9 (`mapWithConcurrency` for both ref-fetch and link fan-out), Law 10
+  (every new error path concludes `neutral`), Law 13 (`package.json` unchanged — no new
+  dependency). Cross-track wiring confirmed correct (`resolveSpecRefs` runs on both old
+  and new spec before diffing, for every link; `createInProgressCheckRun` filters on
+  `run.name`, not just the query param). Every acceptance-sketch scenario has a real test
+  (not just a plausible-looking one) — auditor cited exact file:line for each. One real
+  gap, not a defect: the QStash live-sandbox round-trip Track N's spec mandates before
+  shipping has not been performed (see outcome note below). One doc-staleness item fixed
+  directly: `docs/specs/V0-v2-types-env-migrations.md` still listed the rejected
+  `0004_processed_deliveries.sql` as a file to produce; annotated as rejected/not
+  implemented rather than deleted, to preserve the design-history record.
+- Gate at every wave boundary: `npm run typecheck`, `npm run lint`, `npm test` — final
+  state 260/260 tests green across 30 files (up from v1's 180/24), typecheck clean, lint
+  clean.
+- **Outcome: intentionally NOT merged to `main`.** `feat/v2` is implementation-complete
+  and CI-verified, but Track N's mandated live QStash verification hasn't been run, and
+  Vercel auto-deploys from `main` — merging now would put the rewritten pipeline in front
+  of real production PRs before that round-trip is confirmed. Pushed `feat/v2` to
+  `origin/feat/v2`; the merge-to-`main` decision is deferred until the live QStash
+  verification (or an equivalent smoke-test PR, mirroring the `docs/confirm-live-e2e-run`
+  entry above) is done and logged here.

@@ -130,9 +130,11 @@ describe('contents.ts — fetchBlobText', () => {
 });
 
 describe('checks.ts — createInProgressCheckRun', () => {
-  it('4. returns data.id and posts status in_progress with CHECK_NAME', async () => {
+  it('4. no existing check run for repo+sha+name -> POST called once, returns the new run\'s id (regression case, today\'s exact behavior)', async () => {
     const { octokit, request } = mockOctokit();
-    request.mockResolvedValue({ data: { id: 987 } });
+    request
+      .mockResolvedValueOnce({ data: { check_runs: [] } }) // GET lookup: nothing in flight
+      .mockResolvedValueOnce({ data: { id: 987 } }); // POST: creates a fresh run
 
     const id = await createInProgressCheckRun(octokit, {
       owner: 'o',
@@ -141,16 +143,94 @@ describe('checks.ts — createInProgressCheckRun', () => {
     });
 
     expect(id).toBe(987);
-    const [route, params] = request.mock.calls[0]!;
-    expect(route).toBe('POST /repos/{owner}/{repo}/check-runs');
-    expect(params).toMatchObject({
+    expect(request).toHaveBeenCalledTimes(2);
+    const [getRoute, getParams] = request.mock.calls[0]!;
+    expect(getRoute).toBe('GET /repos/{owner}/{repo}/commits/{ref}/check-runs');
+    expect(getParams).toMatchObject({ owner: 'o', repo: 'r', ref: 'abc123', check_name: CHECK_NAME });
+
+    const [postRoute, postParams] = request.mock.calls[1]!;
+    expect(postRoute).toBe('POST /repos/{owner}/{repo}/check-runs');
+    expect(postParams).toMatchObject({
       owner: 'o',
       repo: 'r',
       name: CHECK_NAME,
       head_sha: 'abc123',
       status: 'in_progress',
     });
-    expect(typeof params.started_at).toBe('string');
+    expect(typeof postParams.started_at).toBe('string');
+  });
+
+  it('4b. an existing in_progress run for repo+sha+name -> NO POST call; returns the existing run\'s id', async () => {
+    const { octokit, request } = mockOctokit();
+    request.mockResolvedValueOnce({
+      data: { check_runs: [{ id: 555, name: CHECK_NAME, status: 'in_progress' }] },
+    });
+
+    const id = await createInProgressCheckRun(octokit, {
+      owner: 'o',
+      repo: 'r',
+      headSha: 'abc123',
+    });
+
+    expect(id).toBe(555);
+    expect(request).toHaveBeenCalledTimes(1); // GET only — no POST
+  });
+
+  it('4c. an existing completed run for repo+sha+name -> POST IS called (not "in flight"); returns the new run\'s id', async () => {
+    const { octokit, request } = mockOctokit();
+    request
+      .mockResolvedValueOnce({
+        data: { check_runs: [{ id: 111, name: CHECK_NAME, status: 'completed' }] },
+      })
+      .mockResolvedValueOnce({ data: { id: 222 } });
+
+    const id = await createInProgressCheckRun(octokit, {
+      owner: 'o',
+      repo: 'r',
+      headSha: 'abc123',
+    });
+
+    expect(id).toBe(222);
+    expect(request).toHaveBeenCalledTimes(2);
+  });
+
+  it('4d. multiple existing runs (one in_progress, one older completed) -> the in_progress one\'s id is reused', async () => {
+    const { octokit, request } = mockOctokit();
+    request.mockResolvedValueOnce({
+      data: {
+        check_runs: [
+          { id: 1, name: CHECK_NAME, status: 'completed' },
+          { id: 2, name: CHECK_NAME, status: 'in_progress' },
+        ],
+      },
+    });
+
+    const id = await createInProgressCheckRun(octokit, {
+      owner: 'o',
+      repo: 'r',
+      headSha: 'abc123',
+    });
+
+    expect(id).toBe(2);
+    expect(request).toHaveBeenCalledTimes(1);
+  });
+
+  it('4e. existing runs include a DIFFERENT check name -> ignored even if not completed; POST is called', async () => {
+    const { octokit, request } = mockOctokit();
+    request
+      .mockResolvedValueOnce({
+        data: { check_runs: [{ id: 9, name: 'Some Other App Check', status: 'in_progress' }] },
+      })
+      .mockResolvedValueOnce({ data: { id: 333 } });
+
+    const id = await createInProgressCheckRun(octokit, {
+      owner: 'o',
+      repo: 'r',
+      headSha: 'abc123',
+    });
+
+    expect(id).toBe(333);
+    expect(request).toHaveBeenCalledTimes(2);
   });
 });
 

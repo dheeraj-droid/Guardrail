@@ -5,7 +5,8 @@ import type { Octokit } from 'octokit';
 import { makePostHandler } from '@/app/api/webhook/github/handler';
 import type { PipelineDeps } from '@/lib/pipeline/processPullRequest';
 import type { PipelineInput, PullRequestWebhookPayload } from '@/types/github';
-import type { Env } from '@/config/env';
+import type { Env, QueueEnv } from '@/config/env';
+import { publishPipelineJob } from '@/lib/queue/qstash';
 
 const SECRET = 'test-webhook-secret';
 
@@ -53,6 +54,14 @@ function makeRequest(opts: {
   });
 }
 
+function fakeQueueEnv(): QueueEnv {
+  return {
+    qstashToken: 'token',
+    qstashCurrentSigningKey: 'current-key',
+    qstashNextSigningKey: 'next-key',
+  };
+}
+
 function fakeEnv(): Env {
   return {
     githubWebhookSecret: SECRET,
@@ -62,6 +71,8 @@ function fakeEnv(): Env {
     supabaseServiceRoleKey: 'service-role-key',
     scanConcurrency: 8,
     maxScanFiles: 2000,
+    maxRefResolutionDepth: 5,
+    maxFrontendLinksConcurrency: 3,
   };
 }
 
@@ -259,4 +270,122 @@ describe('POST /api/webhook/github', () => {
     expect(pipelineSpy).toHaveBeenCalledTimes(1);
     expect(pipelineResolved).toBe(true);
   });
+
+  // --- Track N (docs/specs/N-retry-queue.md) — new cases below, existing 8 unmodified ---
+
+  it('9. no QSTASH_TOKEN configured -> behaves exactly as today (defer called, not publish)', async () => {
+    // Force the real tryLoadQueueEnv()/isQueueConfigured() path to see an unconfigured
+    // environment, regardless of what the host shell happens to have set, so this test
+    // is deterministic (queueEnv override is deliberately omitted below).
+    const QSTASH_VARS = ['QSTASH_TOKEN', 'QSTASH_CURRENT_SIGNING_KEY', 'QSTASH_NEXT_SIGNING_KEY'] as const;
+    const originalValues = QSTASH_VARS.map((name) => process.env[name]);
+    for (const name of QSTASH_VARS) delete process.env[name];
+
+    try {
+      const tasks: Array<() => Promise<void>> = [];
+      const pipelineSpy = vi.fn(async () => {});
+      const publishSpy = vi.fn(async () => {});
+      const deps = fakeDeps();
+      const handler = makePostHandler({
+        defer: (t) => tasks.push(t),
+        deps,
+        pipeline: pipelineSpy,
+        publish: publishSpy as unknown as typeof publishPipelineJob,
+        // queueEnv deliberately omitted -> tryLoadQueueEnv() falls through to undefined,
+        // exercising the real not-configured branch.
+      });
+
+      const payload = basePayload();
+      const body = JSON.stringify(payload);
+      const req = makeRequest({ body });
+
+      const res = await handler(req);
+
+      expect(res.status).toBe(202);
+      await expect(res.json()).resolves.toEqual({ queued: true });
+      expect(tasks).toHaveLength(1);
+      expect(publishSpy).not.toHaveBeenCalled();
+      expect(pipelineSpy).not.toHaveBeenCalled();
+
+      await tasks[0]!();
+      expect(pipelineSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      QSTASH_VARS.forEach((name, i) => {
+        const original = originalValues[i];
+        if (original === undefined) delete process.env[name];
+        else process.env[name] = original;
+      });
+    }
+  });
+
+  it('10. QSTASH_TOKEN configured (queueEnv override) -> publish called with the built PipelineInput, defer NOT called, response is 202', async () => {
+    const tasks: Array<() => Promise<void>> = [];
+    const pipelineSpy = vi.fn(async () => {});
+    const publishSpy = vi.fn(async (_queueEnv: QueueEnv, _url: string, _input: PipelineInput) => {});
+    const queueEnv = fakeQueueEnv();
+    const handler = makePostHandler({
+      defer: (t) => tasks.push(t),
+      deps: fakeDeps(),
+      pipeline: pipelineSpy,
+      queueEnv,
+      publish: publishSpy as unknown as typeof publishPipelineJob,
+    });
+
+    const payload = basePayload();
+    const body = JSON.stringify(payload);
+    const req = makeRequest({ body });
+
+    const res = await handler(req);
+
+    expect(res.status).toBe(202);
+    await expect(res.json()).resolves.toEqual({ queued: true });
+    expect(tasks).toHaveLength(0);
+    expect(pipelineSpy).not.toHaveBeenCalled();
+    expect(publishSpy).toHaveBeenCalledTimes(1);
+
+    const [calledQueueEnv, calledUrl, calledInput] = publishSpy.mock.calls[0]!;
+    expect(calledQueueEnv).toBe(queueEnv);
+    expect(calledUrl).toBe('http://localhost/api/webhook/process');
+    expect(calledInput).toEqual<PipelineInput>({
+      installationId: 987,
+      backendRepoId: 42,
+      backendOwner: 'acme',
+      backendRepo: 'backend-repo',
+      prNumber: 7,
+      headSha: 'headsha123',
+      headRef: 'feature/x',
+      baseRef: 'main',
+    });
+  });
+
+  it('11. publish override configured to reject -> response is 502; defer not called', async () => {
+    const tasks: Array<() => Promise<void>> = [];
+    const pipelineSpy = vi.fn(async () => {});
+    const publishSpy = vi.fn(async () => {
+      throw new Error('network down');
+    });
+    const handler = makePostHandler({
+      defer: (t) => tasks.push(t),
+      deps: fakeDeps(),
+      pipeline: pipelineSpy,
+      queueEnv: fakeQueueEnv(),
+      publish: publishSpy as unknown as typeof publishPipelineJob,
+    });
+
+    const body = JSON.stringify(basePayload());
+    const req = makeRequest({ body });
+
+    const res = await handler(req);
+
+    expect(res.status).toBe(502);
+    expect(tasks).toHaveLength(0);
+    expect(pipelineSpy).not.toHaveBeenCalled();
+  });
+
+  // Tests 12/13 (delivery-id claim dedup) were removed along with
+  // processed_deliveries/claimDelivery — see webhook/github/handler.ts's header comment
+  // for why: a claim committed before work is durably handed off has no safe release
+  // path on either failure mode (publish failure, process death mid-after()), so it
+  // silently swallows the very retries it existed to protect. Idempotency now lives
+  // entirely in createInProgressCheckRun (tests/github/adapters.test.ts).
 });

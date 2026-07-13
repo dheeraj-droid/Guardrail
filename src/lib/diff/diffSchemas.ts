@@ -3,6 +3,7 @@
 
 import type { BreakingChange } from '@/types/contract';
 import { flattenOpenApiFields } from './flattenSchema';
+import { annotateRenames } from './detectRenames';
 
 /**
  * Compare old vs new OpenAPI specs and emit breaking changes
@@ -39,8 +40,10 @@ export function diffOpenApiSchemas(
     }
   }
 
+  const annotated = annotateRenames(changes, oldMap, newMap);
+
   // Sort deterministically: by parent asc, then field asc (plain < compare).
-  changes.sort((a, b) => {
+  annotated.sort((a, b) => {
     if (a.parent < b.parent) return -1;
     if (a.parent > b.parent) return 1;
     if (a.field < b.field) return -1;
@@ -48,5 +51,5 @@ export function diffOpenApiSchemas(
     return 0;
   });
 
-  return changes;
+  return annotated;
 }

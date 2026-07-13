@@ -1,5 +1,6 @@
 // FROZEN CONTRACT (CLAUDE.md Law 1). Do not edit, extend, or redefine these shapes.
 // Every track imports from here; changing a field breaks parallel work.
+// FROZEN CONTRACT except for this one additive v2 field (see docs/PLAN_V2.md §7).
 
 /** How a schema field changed between the base and head OpenAPI specs. */
 export type ChangeKind = 'DELETED' | 'TYPE_MUTATED';
@@ -11,6 +12,8 @@ export interface BreakingChange {
   change: ChangeKind;
   original?: string; // TYPE_MUTATED only, e.g. "integer"
   updated?: string; // TYPE_MUTATED only, e.g. "string"
+  renamedTo?: string; // set only by diff/detectRenames.ts on an unambiguous same-type
+                       // rename match (Track M) — never set anywhere else
 }
 
 /** A frontend source location that references a broken field (SRD Module 4). */

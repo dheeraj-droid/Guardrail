@@ -1,10 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import {
   CHECKS_SUMMARY_LIMIT,
+  formatAggregatePrComment,
   formatPrComment,
   truncateForChecks,
 } from '@/lib/report/formatComment';
+import { computeVerdict } from '@/lib/report/verdict';
 import type { BreakingChange, ScanReport, UsageMatch } from '@/types/contract';
+import type { LinkOutcome } from '@/lib/pipeline/processPullRequest';
+import type { ProjectLink } from '@/types/db';
 
 const scan = (
   matches: UsageMatch[],
@@ -154,6 +158,20 @@ describe('formatPrComment', () => {
     // Raw (unescaped) pipe from the snippet must not appear.
     expect(out).not.toContain('a.age | 0');
   });
+
+  it('11. DELETED with renamedTo renders a rename hint; DELETED without it stays plain', () => {
+    const out = formatPrComment({
+      changes: [
+        { field: 'age', parent: 'User', change: 'DELETED', renamedTo: 'ageYears' },
+        { field: 'phoneNumber', parent: 'User', change: 'DELETED' },
+      ],
+      scan: scan([]),
+      frontendRepoFullName: 'acme/web',
+      openapiFilePath: 'openapi.json',
+    });
+    expect(out).toContain('| `age` | `User` | DELETED (looks renamed to `ageYears`) | — | — |');
+    expect(out).toContain('| `phoneNumber` | `User` | DELETED | — | — |');
+  });
 });
 
 describe('truncateForChecks', () => {
@@ -188,5 +206,125 @@ describe('truncateForChecks', () => {
     // Body is cut at the newline: no trailing 'z' filler survives before the note.
     expect(out).toBe('y'.repeat(CHECKS_SUMMARY_LIMIT - 100) + '\n\n…truncated by Guardrail (output limit).');
     expect(out.endsWith('…truncated by Guardrail (output limit).')).toBe(true);
+  });
+});
+
+// ---- Spec P — formatAggregatePrComment (Wave V2 multi-link composer) ------------------
+
+function makeLink(overrides: Partial<ProjectLink> = {}): ProjectLink {
+  return {
+    id: 'link-1',
+    backend_repo_id: 100,
+    frontend_repo_id: 200,
+    openapi_file_path: 'openapi.json',
+    frontend_src_directory: 'src',
+    created_at: '2026-01-01T00:00:00Z',
+    ...overrides,
+  };
+}
+
+function evaluatedOutcome(opts: {
+  link?: ProjectLink;
+  changes?: BreakingChange[];
+  matches?: UsageMatch[];
+  frontendRepoFullName?: string;
+}): LinkOutcome {
+  const link = opts.link ?? makeLink();
+  const changes = opts.changes ?? [];
+  const matches = opts.matches ?? [];
+  return {
+    kind: 'evaluated',
+    link,
+    frontendRepoFullName: opts.frontendRepoFullName ?? 'acme/web',
+    changes,
+    scan: scan(matches),
+    verdict: computeVerdict(changes, matches),
+  };
+}
+
+describe('formatAggregatePrComment', () => {
+  it('1. 2 outcomes (one failing, one clean) -> summary table has 2 rows, exactly 1 detail section', () => {
+    const failing = evaluatedOutcome({
+      link: makeLink({ id: 'a' }),
+      changes: [{ field: 'phoneNumber', parent: 'User', change: 'DELETED' }],
+      matches: [
+        {
+          field: 'phoneNumber',
+          filePath: 'src/a.ts',
+          line: 1,
+          column: 1,
+          kind: 'property-access',
+          snippet: 'u.phoneNumber',
+        },
+      ],
+      frontendRepoFullName: 'acme/broken',
+    });
+    const clean = evaluatedOutcome({
+      link: makeLink({ id: 'b' }),
+      changes: [],
+      matches: [],
+      frontendRepoFullName: 'acme/clean',
+    });
+
+    const out = formatAggregatePrComment([failing, clean]);
+    const lines = out.split('\n');
+
+    expect(lines[0]).toBe('<!-- guardrail-report -->');
+
+    // Summary table: header + separator + exactly 2 outcome rows.
+    const tableRows = lines.filter((l) => l.startsWith('| ') && l.includes(' | '));
+    // header row + separator counted separately below; count data rows via frontend labels.
+    expect(out).toContain('| `acme/broken` |');
+    expect(out).toContain('| `acme/clean` |');
+    expect(tableRows.filter((l) => l.includes('acme/broken') || l.includes('acme/clean')).length).toBe(2);
+
+    // Exactly one detail section (the failing one) — the clean one has zero changes,
+    // so its own verdict.shouldComment is false and it gets no detail heading.
+    expect(out).toContain('### acme/broken');
+    expect(out).not.toContain('### acme/clean');
+  });
+
+  it('2. singleton evaluated outcome -> byte-identical to formatPrComment called directly', () => {
+    const outcome = evaluatedOutcome({
+      changes: [{ field: 'age', parent: 'User', change: 'TYPE_MUTATED', original: 'integer', updated: 'string' }],
+      matches: [
+        {
+          field: 'age',
+          filePath: 'src/a.ts',
+          line: 3,
+          column: 2,
+          kind: 'destructuring',
+          snippet: 'const { age } = user;',
+        },
+      ],
+      frontendRepoFullName: 'acme/solo',
+    }) as Extract<LinkOutcome, { kind: 'evaluated' }>;
+
+    const viaAggregate = formatAggregatePrComment([outcome]);
+    const viaDirect = formatPrComment({
+      changes: outcome.changes,
+      scan: outcome.scan,
+      frontendRepoFullName: outcome.frontendRepoFullName,
+      openapiFilePath: outcome.link.openapi_file_path,
+    });
+
+    expect(viaAggregate).toBe(viaDirect);
+  });
+
+  it('3. non-evaluated outcome kinds appear in the summary table with a status phrase, never a detail section', () => {
+    const removed: LinkOutcome = { kind: 'spec-removed', link: makeLink({ id: 'a', frontend_repo_id: 300 }) };
+    const errored: LinkOutcome = { kind: 'internal-error', link: makeLink({ id: 'b', frontend_repo_id: 400 }), message: 'boom' };
+    const clean = evaluatedOutcome({ link: makeLink({ id: 'c' }), changes: [], matches: [] });
+
+    const out = formatAggregatePrComment([removed, errored, clean]);
+
+    // Both non-evaluated kinds show up with SOME status phrase, and no '###' detail
+    // heading is emitted for either of them.
+    expect(out).toContain('repo 300');
+    expect(out).toContain('repo 400');
+    expect(out).not.toMatch(/### repo 300/);
+    expect(out).not.toMatch(/### repo 400/);
+    expect(out).toContain('OpenAPI spec was removed');
+    expect(out).toContain('Guardrail internal error');
   });
 });
