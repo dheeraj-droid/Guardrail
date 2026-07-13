@@ -158,6 +158,59 @@ code,
   }
 }
 
+/* ---- Session chip: signed-in identity in the header ---- */
+.session-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.7rem 0.3rem 0.35rem;
+  margin-left: 0.5rem;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--ink);
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+  transition:
+    background-color 160ms var(--ease-out),
+    border-color 160ms var(--ease-out);
+}
+
+.session-chip:hover {
+  background: var(--bg-soft);
+  border-color: var(--rule-strong);
+}
+
+.session-chip-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--bg-soft);
+  object-fit: cover;
+}
+
+.session-chip-login {
+  font-size: 0.88rem;
+  letter-spacing: -0.005em;
+}
+
+/* Quiet, ghost sign-out control — deliberately not a primary button. */
+.button.session-signout {
+  padding: 0.4rem 0.85rem;
+  font-size: 0.86rem;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+  box-shadow: none;
+}
+
+.button.session-signout:hover {
+  background: var(--bg-soft);
+  border-color: var(--rule);
+  color: var(--ink);
+}
+
 /* ============ Buttons ============ */
 
 .button {

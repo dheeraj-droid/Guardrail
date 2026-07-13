@@ -1,4 +1,8 @@
 import { loadDashboardEnv } from '@/config/env';
+import { resolveSessionState } from './sessionState';
+
+// Hero and CTA reflect the current request's auth state, so the page must render per-request.
+export const dynamic = 'force-dynamic';
 
 /**
  * Public landing page (server component). MUST NOT throw when the dashboard env is
@@ -12,6 +16,8 @@ export default async function HomePage({
 }) {
   const params = await searchParams;
   const showAuthError = params.error === 'auth';
+
+  const { login } = await resolveSessionState();
 
   let appSlug: string | null = null;
   let configured = true;
@@ -60,9 +66,15 @@ export default async function HomePage({
 
         {configured && appSlug && (
           <div className="actions">
-            <a className="button button-primary button-lg" href="/api/auth/login">
-              Sign in with GitHub
-            </a>
+            {login ? (
+              <a className="button button-primary button-lg" href="/dashboard">
+                Go to dashboard →
+              </a>
+            ) : (
+              <a className="button button-primary button-lg" href="/api/auth/login">
+                Sign in with GitHub
+              </a>
+            )}
             {installHref && (
               <a className="button button-lg" href={installHref}>
                 Install the GitHub App
@@ -372,9 +384,15 @@ export default async function HomePage({
             <h2>Put a guardrail on your contract.</h2>
             <p>Wire it up in a couple of minutes. It watches every PR from then on.</p>
             <div className="actions">
-              <a className="button button-primary button-lg" href="/api/auth/login">
-                Sign in with GitHub
-              </a>
+              {login ? (
+                <a className="button button-primary button-lg" href="/dashboard">
+                  Go to dashboard →
+                </a>
+              ) : (
+                <a className="button button-primary button-lg" href="/api/auth/login">
+                  Sign in with GitHub
+                </a>
+              )}
               {installHref && (
                 <a className="button button-lg" href={installHref}>
                   Install the GitHub App
