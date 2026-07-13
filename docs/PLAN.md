@@ -6,9 +6,12 @@ the orchestration loops that let multiple subagents build the system concurrentl
 stepping on each other.
 
 **Status:** v1 complete — every track (W0, A–J) plus the Wave 4 dashboard (Spec K, see §7)
-is implemented, with 180 tests green and `typecheck`/`lint` clean on `main`. This document
+is implemented. v2 (the four §7 backlog items) is also merged into `main` — 260 tests
+green, `typecheck`/`lint` clean, spec-audited with zero code defects. This document
 remains the build plan/reference; see `docs/IMPLEMENTATION_LOG.md` for the change-by-change
-record of what actually shipped.
+record of what actually shipped, including the merge. **v2's queue path (Track N) is
+CI-verified but not yet live-verified** — see `docs/PLAN_V2.md`'s Status line for what's
+outstanding.
 
 ## 1. System summary
 

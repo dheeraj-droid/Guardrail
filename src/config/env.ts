@@ -8,6 +8,8 @@ export interface Env {
   supabaseServiceRoleKey: string;
   scanConcurrency: number; // default 8
   maxScanFiles: number; // default 2000
+  maxRefResolutionDepth: number; // default 5
+  maxFrontendLinksConcurrency: number; // default 3
 }
 
 const REQUIRED_STRING_VARS = [
@@ -54,6 +56,8 @@ export function loadEnv(source?: NodeJS.ProcessEnv): Env {
     supabaseServiceRoleKey: src.SUPABASE_SERVICE_ROLE_KEY!,
     scanConcurrency: parsePositiveInt(src.SCAN_CONCURRENCY, 8),
     maxScanFiles: parsePositiveInt(src.MAX_SCAN_FILES, 2000),
+    maxRefResolutionDepth: parsePositiveInt(src.MAX_REF_RESOLUTION_DEPTH, 5),
+    maxFrontendLinksConcurrency: parsePositiveInt(src.MAX_FRONTEND_LINKS_CONCURRENCY, 3),
   };
 
   if (usingProcessEnv) memoized = env;
@@ -120,4 +124,63 @@ export function loadDashboardEnv(source?: NodeJS.ProcessEnv): DashboardEnv {
 
   if (usingProcessEnv) memoizedDashboard = env;
   return env;
+}
+
+// ---------------------------------------------------------------------------------------
+// Track N — Retries / durable queue (docs/PLAN_V2.md §3). A SEPARATE, opt-in exception to
+// the frozen-W0 rule: this is an ADDITIVE export alongside Env/loadEnv, never a
+// modification of them. Deployments that never set QSTASH_* keep using the after()
+// fallback path, so these vars are validated ONLY here, never folded into loadEnv()/Env.
+// ---------------------------------------------------------------------------------------
+
+export interface QueueEnv {
+  qstashToken: string;
+  qstashCurrentSigningKey: string;
+  qstashNextSigningKey: string;
+}
+
+const REQUIRED_QUEUE_VARS = [
+  'QSTASH_TOKEN',
+  'QSTASH_CURRENT_SIGNING_KEY',
+  'QSTASH_NEXT_SIGNING_KEY',
+] as const;
+
+let memoizedQueue: QueueEnv | undefined;
+
+/**
+ * Load and validate queue-only environment configuration.
+ * @param source override for process.env (tests pass a stub); never mutated. When a
+ *   source is provided the module-level memo is bypassed so tests stay isolated.
+ */
+export function loadQueueEnv(source?: NodeJS.ProcessEnv): QueueEnv {
+  const usingProcessEnv = source === undefined;
+  if (usingProcessEnv && memoizedQueue) return memoizedQueue;
+
+  const src = source ?? process.env;
+
+  for (const name of REQUIRED_QUEUE_VARS) {
+    const value = src[name];
+    if (value === undefined || value === '') {
+      throw new Error(`Missing required env var: ${name}`);
+    }
+  }
+
+  const env: QueueEnv = {
+    qstashToken: src.QSTASH_TOKEN!,
+    qstashCurrentSigningKey: src.QSTASH_CURRENT_SIGNING_KEY!,
+    qstashNextSigningKey: src.QSTASH_NEXT_SIGNING_KEY!,
+  };
+
+  if (usingProcessEnv) memoizedQueue = env;
+  return env;
+}
+
+/** True iff every REQUIRED_QUEUE_VARS entry is a non-empty string — does not throw. */
+export function isQueueConfigured(source?: NodeJS.ProcessEnv): boolean {
+  try {
+    loadQueueEnv(source);
+    return true;
+  } catch {
+    return false;
+  }
 }

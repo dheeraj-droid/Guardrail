@@ -10,14 +10,26 @@
 > AST-scans the linked frontend repo for live usage, and blocks the merge via the GitHub
 > Checks API — with exact file/line locations — when the change would break the UI.
 
-**Status:** v1 complete — core pipeline plus the optional public onboarding
-[dashboard](#dashboard) (specs A–K and W0, all build waves through Wave 4). 180 tests
-green across 24 files, `npm run typecheck` and `npm run lint` clean, CI green on `main`.
-Verified end-to-end against a live deployment ([guardrail-coral.vercel.app](https://guardrail-coral.vercel.app/))
+**Status:** v1 + v2 both on `main` — core pipeline, the optional public onboarding
+[dashboard](#dashboard), and v2 (cross-file `$ref` resolution, renamed-field detection,
+an opt-in QStash retry queue, multi-frontend fan-out with one aggregated verdict per PR).
+260 tests green across 30 files, `npm run typecheck` and `npm run lint` clean.
+v1 is verified end-to-end against a live deployment ([guardrail-coral.vercel.app](https://guardrail-coral.vercel.app/))
 with a real GitHub App and Supabase project: a PR deleting `phoneNumber` and mutating
 `age` on [guardrail-demo](https://github.com/dheeraj-droid/guardrail-demo) produced a
 correct `failure` check run with exact `file:line` locations, including through a
 destructuring alias — see [Deployment](#deployment).
+
+**v2's queue path (Track N) is also live-verified**, directly in production against the
+same [guardrail-demo#1](https://github.com/dheeraj-droid/guardrail-demo/pull/1) test PR:
+a real QStash publish/callback round-trip concluded a correct check run, and two
+GitHub-triggered redeliveries of the same event were both fully evaluated rather than
+silently dropped. See `docs/PLAN_V2.md`'s Status line and `docs/IMPLEMENTATION_LOG.md`'s
+2026-07-13 entry for the full detail, including one nuance worth knowing before you rely
+on it: check-run-level dedup only reuses a run that's still in progress, so a redelivery
+arriving after completion (the common case — the pipeline finishes in ~2s) legitimately
+produces its own additional check run rather than a duplicate-free single one; PR-comment
+idempotency (one comment, updated in place) held throughout regardless.
 
 ## Why
 
@@ -108,7 +120,7 @@ docs/                                     — architecture plan & per-module spe
 ```bash
 npm install
 npm run typecheck   # tsc --noEmit
-npm test            # vitest run — 180 tests
+npm test            # vitest run — 260 tests
 npm run dev         # next dev (needs env vars configured, below)
 ```
 
@@ -126,11 +138,17 @@ Copy `.env.example` to `.env` and fill in:
 | `SCAN_CONCURRENCY` | Max concurrent blob fetches (default 8) |
 | `MAX_SCAN_FILES` | Cap on frontend files scanned per PR (default 2000) |
 
-The webhook pipeline above needs only those seven. Five more variables are read
-separately (`src/config/env.ts#loadDashboardEnv`) and are only needed if you enable the
-[public dashboard](#dashboard): `GITHUB_APP_CLIENT_ID`, `GITHUB_APP_CLIENT_SECRET`,
-`GITHUB_APP_SLUG`, `GUARDRAIL_SESSION_SECRET`, `APP_BASE_URL` — see
-[docs/DEPLOY.md](docs/DEPLOY.md) Step 6.
+The webhook pipeline above needs only those seven (plus two optional, defaulted v2
+tuning knobs: `MAX_REF_RESOLUTION_DEPTH` default 5, `MAX_FRONTEND_LINKS_CONCURRENCY`
+default 3). Five more variables are read separately (`src/config/env.ts#loadDashboardEnv`)
+and are only needed if you enable the [public dashboard](#dashboard):
+`GITHUB_APP_CLIENT_ID`, `GITHUB_APP_CLIENT_SECRET`, `GITHUB_APP_SLUG`,
+`GUARDRAIL_SESSION_SECRET`, `APP_BASE_URL` — see
+[docs/DEPLOY.md](docs/DEPLOY.md) Step 6. Three more (`QSTASH_TOKEN`,
+`QSTASH_CURRENT_SIGNING_KEY`, `QSTASH_NEXT_SIGNING_KEY`) are read separately
+(`src/config/env.ts#loadQueueEnv`) and only activate v2's durable retry queue
+(`docs/specs/N-retry-queue.md`) — unset, the webhook falls back to `after()` exactly as
+in v1.
 
 ## Deployment
 

@@ -10,12 +10,36 @@ export const CHECK_NAME = 'Guardrail Contract Check';
 // 422-ing regardless of caller behaviour.
 const CHECKS_SUMMARY_MAX = 65535;
 
-/** Create the run in_progress as soon as processing starts; returns check_run id. */
+/**
+ * Create the run in_progress as soon as processing starts; returns check_run id.
+ *
+ * Idempotent (Track N, docs/specs/N-retry-queue.md File 5): reuses an existing
+ * NOT-YET-COMPLETED run with our name on this exact repo+sha instead of creating a
+ * duplicate. A queue retry (or a GitHub redelivery that slipped past the ingress
+ * delivery-claim) invoking this a second time for the same commit must not produce a
+ * second check run. This is the fix that actually closes the QStash-retry double-run
+ * gap — see the Purpose section of the spec above for the full reasoning.
+ */
 export async function createInProgressCheckRun(
   octokit: Octokit,
   params: { owner: string; repo: string; headSha: string },
 ): Promise<number> {
   const { owner, repo, headSha } = params;
+
+  const { data: existing } = await octokit.request(
+    'GET /repos/{owner}/{repo}/commits/{ref}/check-runs',
+    { owner, repo, ref: headSha, check_name: CHECK_NAME },
+  );
+  // Filter on name explicitly, even though check_name already scopes the GET query —
+  // defensive against a mock/fake in tests not honoring the query param, and makes this
+  // function's own logic (not just the API call) what's actually being verified.
+  const inFlight = existing.check_runs.find(
+    (run) => run.status !== 'completed' && run.name === CHECK_NAME,
+  );
+  if (inFlight) {
+    return inFlight.id;
+  }
+
   const { data } = await octokit.request(
     'POST /repos/{owner}/{repo}/check-runs',
     {
