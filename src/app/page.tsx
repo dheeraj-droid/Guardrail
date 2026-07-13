@@ -1,5 +1,8 @@
 import { loadDashboardEnv } from '@/config/env';
 import { resolveSessionState } from './sessionState';
+import { ProductPanel } from './ProductPanel';
+import { Reveal } from './Reveal';
+import { CountUp } from './CountUp';
 
 // Hero and CTA reflect the current request's auth state, so the page must render per-request.
 export const dynamic = 'force-dynamic';
@@ -91,102 +94,30 @@ export default async function HomePage({
       </section>
 
       {/* ---------------- Product panel: the money shot ---------------- */}
-      <div className="product-panel-wrap" aria-hidden="true">
-        <div className="product-panel">
-          <div className="check-card">
-            <div className="check-card-header">
-              <div className="check-card-pr">
-                <span className="pr-badge">
-                  <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
-                    <path d="M11.5 3a1.5 1.5 0 1 0-1.9 1.44v6.12a1.5 1.5 0 1 0 1 0V4.44A1.5 1.5 0 0 0 11.5 3ZM4.5 3a1.5 1.5 0 1 0-1 2.83v4.34a1.5 1.5 0 1 0 1 0V5.83A1.5 1.5 0 0 0 4.5 3Z" />
-                  </svg>
-                  #482
-                </span>
-                <span className="check-card-title">
-                  Remove deprecated <code>phoneNumber</code> from User
-                </span>
-              </div>
-            </div>
-
-            <div className="check-list">
-              <div className="check-row">
-                <span className="check-icon check-icon-pass">
-                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-                    <path d="M3.5 8.5l3 3 6-7" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </span>
-                <span className="check-name">build</span>
-                <span className="check-status">Passed</span>
-              </div>
-              <div className="check-row">
-                <span className="check-icon check-icon-pass">
-                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-                    <path d="M3.5 8.5l3 3 6-7" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </span>
-                <span className="check-name">unit-tests</span>
-                <span className="check-status">Passed</span>
-              </div>
-              <div className="check-row check-row-fail">
-                <span className="check-icon check-icon-fail">
-                  <svg width="11" height="11" viewBox="0 0 16 16" fill="none">
-                    <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-                  </svg>
-                </span>
-                <span className="check-name">Guardrail / contract</span>
-                <span className="check-status check-status-fail">2 breaking usages</span>
-              </div>
-            </div>
-
-            <div className="check-detail">
-              <p className="check-detail-head">
-                <span className="check-detail-dot" /> Deleted field{' '}
-                <code>User.phoneNumber</code> is still used in the frontend
-              </p>
-              <ul className="check-detail-list">
-                <li>
-                  <span className="file">web/src/ProfileCard.tsx</span>
-                  <span className="loc">:24</span>
-                  <code className="usage">user.phoneNumber</code>
-                </li>
-                <li>
-                  <span className="file">web/src/checkout/Contact.tsx</span>
-                  <span className="loc">:11</span>
-                  <code className="usage">const {'{ phoneNumber }'} = user</code>
-                </li>
-              </ul>
-            </div>
-
-            <div className="check-blocked">
-              <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-                <circle cx="8" cy="8" r="6.4" stroke="currentColor" strokeWidth="1.6" />
-                <path d="M3.7 3.7l8.6 8.6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-              </svg>
-              Merging is blocked
-            </div>
-          </div>
-        </div>
-      </div>
+      <ProductPanel />
 
       {/* ---------------- Proof strip (real numbers, no invented logos) ---------------- */}
-      <div className="proof-strip">
-        <div className="proof-stat">
-          <span className="proof-num">3s</span>
-          <span className="proof-label">verdict on the live demo PR</span>
+      <Reveal>
+        <div className="proof-strip">
+          <div className="proof-stat">
+            <CountUp className="proof-num" value={3} suffix="s" />
+            <span className="proof-label">verdict on the live demo PR</span>
+          </div>
+          <div className="proof-stat">
+            <CountUp className="proof-num" value={260} />
+            <span className="proof-label">tests green on every commit</span>
+          </div>
+          <div className="proof-stat">
+            <CountUp className="proof-num" value={100} suffix="%" />
+            <span className="proof-label">open source on GitHub</span>
+          </div>
         </div>
-        <div className="proof-stat">
-          <span className="proof-num">180</span>
-          <span className="proof-label">tests green on every commit</span>
-        </div>
-        <div className="proof-stat">
-          <span className="proof-num">100%</span>
-          <span className="proof-label">open source on GitHub</span>
-        </div>
-      </div>
+      </Reveal>
 
       {/* ---------------- How it works ---------------- */}
       <section className="section" id="how-it-works">
         <div className="container">
+          <Reveal>
           <div className="section-head">
             <span className="section-kicker">How it works</span>
             <h2>
@@ -225,12 +156,14 @@ export default async function HomePage({
               </p>
             </li>
           </ol>
+          </Reveal>
         </div>
       </section>
 
       {/* ---------------- Features ---------------- */}
       <section className="section section-rule" id="features">
         <div className="container">
+          <Reveal>
           <div className="section-head">
             <span className="section-kicker">Why Guardrail</span>
             <h2>
@@ -291,12 +224,14 @@ export default async function HomePage({
               </p>
             </article>
           </div>
+          </Reveal>
         </div>
       </section>
 
       {/* ---------------- FAQ ---------------- */}
       <section className="section section-rule" id="faq">
         <div className="container">
+          <Reveal>
           <div className="section-head">
             <span className="section-kicker">FAQ</span>
             <h2>
@@ -374,6 +309,7 @@ export default async function HomePage({
               </p>
             </article>
           </div>
+          </Reveal>
         </div>
       </section>
 
@@ -386,7 +322,7 @@ export default async function HomePage({
             <div className="actions">
               {login ? (
                 <a className="button button-primary button-lg" href="/dashboard">
-                  Go to dashboard →
+                  Go to dashboard <span className="btn-arrow" aria-hidden="true">→</span>
                 </a>
               ) : (
                 <a className="button button-primary button-lg" href="/api/auth/login">
