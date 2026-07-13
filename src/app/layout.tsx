@@ -30,6 +30,34 @@ const fraunces = Fraunces({
   variable: '--font-serif',
 });
 
+// The real brand mark (docs/assets/guardrail-logo.svg) — coral shield, white checkmark.
+// Inlined rather than an <img> so it stays crisp at 22px with no extra request.
+function BrandMark() {
+  return (
+    <svg
+      className="brand-mark"
+      width="22"
+      height="22"
+      viewBox="0 0 512 512"
+      fill="none"
+      aria-hidden="true"
+    >
+      <path
+        d="M166 132 L346 132 Q366 132 366 152 L366 244 Q366 330 256 390 Q146 330 146 244 L146 152 Q146 132 166 132 Z"
+        fill="#E9564A"
+      />
+      <path
+        d="M208 250 L240 284 L316 200"
+        fill="none"
+        stroke="#FFFFFF"
+        strokeWidth="34"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export const metadata: Metadata = {
   title: 'Guardrail — Stop breaking API changes before they merge',
   description:
@@ -44,7 +72,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <header className="site-header">
           <div className="container site-header-inner">
             <Link href="/" className="brand">
-              <span className="brand-mark" aria-hidden="true" />
+              <BrandMark />
               <span>Guardrail</span>
             </Link>
             <nav className="site-nav" aria-label="Primary">
@@ -74,7 +102,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <footer className="site-footer">
           <div className="container site-footer-inner">
             <div className="brand">
-              <span className="brand-mark" aria-hidden="true" />
+              <BrandMark />
               <span>Guardrail</span>
             </div>
             <p className="site-footer-note">

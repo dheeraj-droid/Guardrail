@@ -350,3 +350,38 @@ merged)
   the hero change already visually confirmed.
 - Outcome: committed on `feat/premium-dashboard-ui`, pushed to update PR #5 (Vercel
   preview redeploys).
+
+## 2026-07-11 (cont. 3)
+
+**Real logo + favicon** (`feat/premium-dashboard-ui`, PR #5)
+- `main` already had brand assets this PR branch didn't: `docs/assets/*.svg` (a coral
+  `#E9564A` shield-with-checkmark mark, mono knockout, wordmark lockups, marketplace
+  feature-card background) from 3 earlier docs commits, and `src/app/icon.svg`
+  (Next.js App Router auto-registers `src/app/*icon.svg` as the favicon) from a separate
+  `feat/favicon` commit — neither had been merged into this branch. Brought in the exact
+  files (`git checkout main -- docs/assets src/app/icon.svg`) rather than merging `main`
+  wholesale, since both branches have independently grown `docs/IMPLEMENTATION_LOG.md`
+  entries at the end and a full merge would conflict there for no benefit — the asset
+  files are byte-identical either way, so this reconciles cleanly whenever the PR
+  eventually merges.
+- `layout.tsx`: replaced the placeholder `.brand-mark` (a flat indigo CSS square) with
+  the real logo, inlined as an SVG component (`BrandMark`) in both the header and footer
+  brand links — crisp at 22px, no extra request. `globals.css`: `.brand-mark` now just
+  sizes/aligns the SVG; dropped the background-fill/box-shadow rules that existed only to
+  fake a mark in CSS.
+- **Flagging, not fixing:** the real brand color is coral (`#E9564A`), confirmed
+  deliberate by `docs/marketplace-media-checklist.md` ("badge background color that
+  matches... the coral logo," "deep slate" surfaces). Every accent choice made in this
+  PR's earlier sessions (buttons, the eyebrow dot, badges, the hero's colored word) uses
+  indigo (`--color-primary: #8b93ff`) instead, chosen without knowledge of the real mark.
+  With the actual logo now in the header, the mismatch is visible — two unrelated accent
+  hues on one page, which is exactly what the "one accent, one voice" pass earlier in
+  this branch was trying to avoid. Did not recolor the UI to coral: that's a much larger,
+  highly visible diff (every button/badge/link across both files) and a real brand
+  decision, not a mechanical fix — left for the user to confirm before touching it.
+- Verified: `npm run typecheck` clean, `npm run lint` 0 problems, `npm test` 180/180,
+  `npm run build` succeeds with `/icon.svg` appearing as a static route in the build
+  output (confirms Next's auto favicon registration picked it up, not just that the file
+  exists). Visually confirmed live via the browser: both the header and footer render the
+  coral shield mark correctly next to "Guardrail," CTA band and footer layout unaffected.
+- Outcome: committed on `feat/premium-dashboard-ui`, pushed to update PR #5.
