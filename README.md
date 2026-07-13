@@ -20,11 +20,16 @@ with a real GitHub App and Supabase project: a PR deleting `phoneNumber` and mut
 correct `failure` check run with exact `file:line` locations, including through a
 destructuring alias — see [Deployment](#deployment).
 
-**v2's queue path (Track N) is CI-verified but not yet live-verified** — the QStash
-sandbox round-trip `docs/specs/N-retry-queue.md` mandates before shipping has not been
-run; `QSTASH_TOKEN` is already configured in production, so it will be verified directly
-there rather than on a preview deployment first. See `docs/PLAN_V2.md`'s Status line and
-`docs/IMPLEMENTATION_LOG.md`'s merge entry for the full reasoning.
+**v2's queue path (Track N) is also live-verified**, directly in production against the
+same [guardrail-demo#1](https://github.com/dheeraj-droid/guardrail-demo/pull/1) test PR:
+a real QStash publish/callback round-trip concluded a correct check run, and two
+GitHub-triggered redeliveries of the same event were both fully evaluated rather than
+silently dropped. See `docs/PLAN_V2.md`'s Status line and `docs/IMPLEMENTATION_LOG.md`'s
+2026-07-13 entry for the full detail, including one nuance worth knowing before you rely
+on it: check-run-level dedup only reuses a run that's still in progress, so a redelivery
+arriving after completion (the common case — the pipeline finishes in ~2s) legitimately
+produces its own additional check run rather than a duplicate-free single one; PR-comment
+idempotency (one comment, updated in place) held throughout regardless.
 
 ## Why
 
