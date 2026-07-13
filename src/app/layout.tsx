@@ -3,6 +3,11 @@ import type { ReactNode } from 'react';
 import { Inter, JetBrains_Mono } from 'next/font/google';
 import Link from 'next/link';
 import './globals.css';
+import { resolveSessionState } from './sessionState';
+import { SignOutButton } from './SignOutButton';
+
+// Header reflects the current request's auth state, so the layout must render per-request.
+export const dynamic = 'force-dynamic';
 
 // next/font is part of `next` — no new dependency (CLAUDE.md Law 13). Self-hosted at
 // build time, exposed as CSS variables consumed in globals.css.
@@ -52,7 +57,9 @@ export const metadata: Metadata = {
     'Guardrail intercepts backend pull requests that change an OpenAPI contract, scans your linked frontend for code that would break, and blocks the merge before it ships.',
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  const { configured, login } = await resolveSessionState();
+
   return (
     <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
       <body>
@@ -73,9 +80,28 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               >
                 GitHub
               </a>
-              <a className="button button-primary" href="/api/auth/login">
-                Sign in
-              </a>
+              {login ? (
+                <>
+                  <Link className="session-chip" href="/dashboard">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      className="session-chip-avatar"
+                      src={`https://github.com/${login}.png`}
+                      alt=""
+                      width={24}
+                      height={24}
+                    />
+                    <span className="session-chip-login">@{login}</span>
+                  </Link>
+                  <SignOutButton />
+                </>
+              ) : (
+                configured && (
+                  <a className="button button-primary" href="/api/auth/login">
+                    Sign in
+                  </a>
+                )
+              )}
             </nav>
           </div>
         </header>

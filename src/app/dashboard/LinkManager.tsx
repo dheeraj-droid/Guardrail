@@ -152,14 +152,6 @@ export function LinkManager({ login }: LinkManagerProps) {
     }
   }
 
-  async function handleLogout(): Promise<void> {
-    try {
-      await fetch('/api/auth/logout', { method: 'POST', headers: CSRF_HEADERS });
-    } finally {
-      window.location.href = '/';
-    }
-  }
-
   const adminRepos = repos.filter((r) => r.canAdminister);
 
   return (
@@ -172,9 +164,6 @@ export function LinkManager({ login }: LinkManagerProps) {
             Signed in as <strong>@{login}</strong>
           </p>
         </div>
-        <button type="button" className="button" onClick={() => void handleLogout()}>
-          Log out
-        </button>
       </div>
 
       {error && (
