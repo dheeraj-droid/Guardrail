@@ -446,3 +446,19 @@ merged)
   strip (nothing dishonest to put there yet), footer + FAQ not yet eyeballed as pixels,
   mobile pass not visually verified, hero could use a subtle texture/illustration touch.
 - Outcome: committed on `feat/premium-dashboard-ui`, pushed to update PR #5.
+
+**Iteration 2: proof strip + mobile verification** (same branch/PR)
+- Added a Keel-reference-style stats strip under the product panel with three REAL
+  numbers (no invented logos/customers): "3s verdict on the live demo PR" (the actual
+  live check-run duration recorded in docs/marketplace-media-checklist.md), "180 tests
+  green on every commit" (the suite), "100% open source on GitHub."
+- Mobile pass verified programmatically at 375px (screenshot tool was down): zero
+  horizontal overflow (scrollWidth 375 == viewport), hero scales to 40px, nav collapses
+  to the Sign-in CTA, footer wordmark clips inside `overflow: hidden` as designed.
+  Desktop 1440px: no overflow, proof strip renders all three stats.
+- Verified: typecheck + lint clean. **Re-rating: 9/10.** Remaining to 10: pixel-level
+  eyeball of FAQ/footer/mobile (blocked on the flaky screenshot tool — the Vercel
+  preview is the better place for that), and possibly a hero texture/illustration
+  accent. Stopping the loop here this session; the structure is at reference parity and
+  the remaining delta is pixel-tuning against the live preview.
+- Outcome: committed on `feat/premium-dashboard-ui`, pushed to update PR #5.

@@ -156,6 +156,22 @@ export default async function HomePage({
         </div>
       </div>
 
+      {/* ---------------- Proof strip (real numbers, no invented logos) ---------------- */}
+      <div className="proof-strip">
+        <div className="proof-stat">
+          <span className="proof-num">3s</span>
+          <span className="proof-label">verdict on the live demo PR</span>
+        </div>
+        <div className="proof-stat">
+          <span className="proof-num">180</span>
+          <span className="proof-label">tests green on every commit</span>
+        </div>
+        <div className="proof-stat">
+          <span className="proof-num">100%</span>
+          <span className="proof-label">open source on GitHub</span>
+        </div>
+      </div>
+
       {/* ---------------- How it works ---------------- */}
       <section className="section" id="how-it-works">
         <div className="container">

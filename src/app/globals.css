@@ -570,6 +570,36 @@ code,
   font-weight: 600;
 }
 
+/* ---- Proof strip: real numbers under the product panel ---- */
+
+.proof-strip {
+  display: flex;
+  justify-content: center;
+  gap: 4rem;
+  padding: 2.75rem 1.5rem;
+  flex-wrap: wrap;
+}
+
+.proof-stat {
+  text-align: center;
+}
+
+.proof-num {
+  display: block;
+  font-size: 1.7rem;
+  font-weight: 680;
+  letter-spacing: -0.025em;
+  color: var(--ink);
+  line-height: 1.2;
+}
+
+.proof-label {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.86rem;
+  color: var(--muted);
+}
+
 /* ============ Sections ============ */
 
 .section {
