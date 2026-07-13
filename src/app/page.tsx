@@ -1,4 +1,9 @@
 import { loadDashboardEnv } from '@/config/env';
+import { resolveSessionState } from './sessionState';
+
+// Reads the per-request session cookie (via resolveSessionState) to tailor the primary
+// call-to-action, so it must never be statically prerendered.
+export const dynamic = 'force-dynamic';
 
 /**
  * Public landing page (server component). MUST NOT throw when the dashboard env is
@@ -12,6 +17,8 @@ export default async function HomePage({
 }) {
   const params = await searchParams;
   const showAuthError = params.error === 'auth';
+
+  const { login } = await resolveSessionState();
 
   let appSlug: string | null = null;
   let configured = true;
@@ -50,9 +57,15 @@ export default async function HomePage({
           <a className="button" href={`https://github.com/apps/${appSlug}/installations/new`}>
             Install the GitHub App
           </a>
-          <a className="button button-primary" href="/api/auth/login">
-            Sign in with GitHub
-          </a>
+          {login ? (
+            <a className="button button-primary" href="/dashboard">
+              Go to dashboard →
+            </a>
+          ) : (
+            <a className="button button-primary" href="/api/auth/login">
+              Sign in with GitHub
+            </a>
+          )}
         </div>
       )}
     </div>
