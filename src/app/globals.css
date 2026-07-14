@@ -178,9 +178,167 @@ code,
 }
 
 @media (max-width: 720px) {
-  .site-nav a:not(.button) {
+  /* Desktop nav links + inline controls give way to the hamburger menu. */
+  .site-nav {
     display: none;
   }
+}
+
+/* Above 720px the mobile nav (hamburger + panel) is not rendered. */
+@media (min-width: 721px) {
+  .mobile-nav {
+    display: none;
+  }
+}
+
+/* ---- Skip link: visually hidden until keyboard-focused ---- */
+.skip-link {
+  position: absolute;
+  left: 0.75rem;
+  top: -3rem;
+  z-index: 100;
+  padding: 0.55rem 0.95rem;
+  border-radius: var(--radius-sm);
+  background: var(--ink);
+  color: #ffffff;
+  font-size: 0.9rem;
+  font-weight: 600;
+  box-shadow: var(--shadow-card);
+  transition: top 160ms var(--ease-out);
+}
+
+.skip-link:focus-visible {
+  top: 0.75rem;
+}
+
+/* ---- Mobile nav ---- */
+.mobile-nav {
+  display: flex;
+  align-items: center;
+}
+
+.mobile-nav-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--ink);
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition:
+    background-color 160ms var(--ease-out),
+    border-color 160ms var(--ease-out);
+}
+
+.mobile-nav-toggle:hover {
+  background: var(--bg-soft);
+}
+
+.mobile-menu {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 4rem;
+  z-index: 40;
+  background: var(--bg);
+  border-bottom: 1px solid var(--rule);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition:
+    max-height 240ms var(--ease-out),
+    opacity 180ms var(--ease-out);
+}
+
+.mobile-menu.is-open {
+  max-height: 80vh;
+  opacity: 1;
+}
+
+.mobile-menu-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 1rem 1.5rem 1.4rem;
+}
+
+.mobile-menu-inner > a {
+  padding: 0.75rem 0.25rem;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--ink-dim);
+  border-bottom: 1px solid var(--rule);
+}
+
+.mobile-menu-inner > a:last-child {
+  border-bottom: none;
+}
+
+.mobile-menu-session {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-top: 0.5rem;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.mobile-menu-cta {
+  margin-top: 0.75rem;
+  width: 100%;
+  padding: 0.8rem 1.2rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-menu,
+  .skip-link {
+    transition: none;
+  }
+}
+
+/* ---- Route-level states: error boundary + 404 ---- */
+.route-state {
+  display: flex;
+  justify-content: center;
+  padding: 5rem 1.5rem;
+}
+
+.route-state-card {
+  max-width: 34rem;
+  width: 100%;
+  text-align: center;
+  margin: 0;
+}
+
+.route-state-card h1 {
+  font-size: 1.6rem;
+  font-weight: 660;
+  letter-spacing: -0.02em;
+  margin: 0 0 0.6rem;
+}
+
+.route-state-card p {
+  color: var(--muted);
+  margin: 0 0 1.5rem;
+}
+
+.route-state-card .actions {
+  justify-content: center;
+}
+
+.route-state-code {
+  display: inline-block;
+  font-family: var(--font-mono), monospace;
+  font-size: 2.4rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--accent);
+  margin-bottom: 0.5rem;
 }
 
 /* ---- Session chip: signed-in identity in the header ---- */
