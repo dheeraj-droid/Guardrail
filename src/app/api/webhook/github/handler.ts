@@ -29,7 +29,7 @@
 // created nothing lets a retry proceed and create fresh; one that created an in-flight
 // run gets it reused -- so it is the sole, delivery-mechanism-agnostic mechanism.
 import { after } from 'next/server';
-import { loadEnv, isQueueConfigured, loadQueueEnv, type QueueEnv } from '@/config/env';
+import { loadEnv, isQueueConfigured, loadQueueEnv, readAppBaseUrl, type QueueEnv } from '@/config/env';
 import { verifyGithubSignature } from '@/lib/crypto/verifySignature';
 import { createDbClient } from '@/lib/db/supabase';
 import { getInstallationClient } from '@/lib/github/client';
@@ -39,6 +39,25 @@ import {
   type PipelineDeps,
 } from '@/lib/pipeline/processPullRequest';
 import type { PipelineInput, PullRequestWebhookPayload } from '@/types/github';
+
+// Early-rejection guard, NOT a metered stream cap: both GitHub and QStash always send a
+// Content-Length header, so we can reject an oversized (or header-less / malformed) body
+// before reading it. This does not defend against a chunked/streamed body with no length
+// header — it is a cheap first gate on the documented senders. 25 MiB is GitHub's payload
+// ceiling.
+const MAX_BODY_BYTES = 25 * 1024 * 1024;
+
+/**
+ * Reject when Content-Length is absent, not a strict non-negative decimal, or exceeds
+ * MAX_BODY_BYTES. Returns a 413 Response to send back, or null to proceed.
+ */
+function checkBodySize(req: Request): Response | null {
+  const header = req.headers.get('content-length');
+  if (header === null || !/^\d+$/.test(header) || Number(header) > MAX_BODY_BYTES) {
+    return Response.json({ error: 'payload too large' }, { status: 413 });
+  }
+  return null;
+}
 
 /**
  * Module-private helper — constructs the production PipelineDeps. Called INSIDE the
@@ -73,12 +92,17 @@ export function makePostHandler(overrides?: {
   pipeline?: typeof processPullRequest;
   queueEnv?: QueueEnv;
   publish?: typeof publishPipelineJob;
+  baseUrl?: string;
 }): (req: Request) => Promise<Response> {
   const defer = overrides?.defer ?? ((task: () => Promise<void>) => after(task));
   const pipeline = overrides?.pipeline ?? processPullRequest;
   const publish = overrides?.publish ?? publishPipelineJob;
 
   return async function POST(req: Request): Promise<Response> {
+    // 0. Body-size guard BEFORE reading the body (Content-Length only; see MAX_BODY_BYTES).
+    const oversize = checkBodySize(req);
+    if (oversize) return oversize;
+
     // 1. RAW body FIRST — before any parsing (Law 4).
     const raw = await req.text();
 
@@ -147,7 +171,11 @@ export function makePostHandler(overrides?: {
     const queueEnv = overrides?.queueEnv ?? tryLoadQueueEnv();
     if (queueEnv) {
       try {
-        await publish(queueEnv, new URL('/api/webhook/process', req.url).toString(), input);
+        // Pin the publish target to APP_BASE_URL when set (never the spoofable request
+        // Host); fall back to req.url otherwise. The override seam keeps tests off
+        // process.env, mirroring the queueEnv override.
+        const base = overrides?.baseUrl ?? readAppBaseUrl() ?? req.url;
+        await publish(queueEnv, new URL('/api/webhook/process', base).toString(), input);
       } catch (error) {
         console.error(
           '[guardrail] queue publish failed:',

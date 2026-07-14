@@ -30,6 +30,23 @@ import {
 } from '@/lib/pipeline/processPullRequest';
 import type { PipelineInput } from '@/types/github';
 
+// Early-rejection guard, NOT a metered stream cap: both GitHub and QStash always send a
+// Content-Length header, so we can reject an oversized (or header-less / malformed) body
+// before reading it. 25 MiB matches the GitHub route's cap.
+const MAX_BODY_BYTES = 25 * 1024 * 1024;
+
+/**
+ * Reject when Content-Length is absent, not a strict non-negative decimal, or exceeds
+ * MAX_BODY_BYTES. Returns a 413 Response to send back, or null to proceed.
+ */
+function checkBodySize(req: Request): Response | null {
+  const header = req.headers.get('content-length');
+  if (header === null || !/^\d+$/.test(header) || Number(header) > MAX_BODY_BYTES) {
+    return Response.json({ error: 'payload too large' }, { status: 413 });
+  }
+  return null;
+}
+
 /**
  * Module-private helper — constructs the production PipelineDeps. Called INSIDE the
  * request path (this route awaits the pipeline directly), never at module top level
@@ -51,6 +68,10 @@ export function makePostHandler(overrides?: {
   const pipeline = overrides?.pipeline ?? processPullRequest;
 
   return async function POST(req: Request): Promise<Response> {
+    // 0. Body-size guard BEFORE reading the body (Content-Length only; see MAX_BODY_BYTES).
+    const oversize = checkBodySize(req);
+    if (oversize) return oversize;
+
     // 1. RAW body FIRST — same discipline as the GitHub route even though this is an
     //    internal hop; the signature covers the raw bytes.
     const raw = await req.text();

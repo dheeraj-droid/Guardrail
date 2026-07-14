@@ -181,12 +181,26 @@ describe('POST /api/links', () => {
 });
 
 describe('DELETE /api/links', () => {
-  it('26. happy path -> 204', async () => {
+  it('26. happy path -> 204, pair-level delete with both ids', async () => {
     mocks.listAccessibleRepos.mockResolvedValue([
       { id: 1, fullName: 'acme/backend', owner: 'acme', name: 'backend', canAdminister: true, installationId: 9 },
     ] satisfies AccessibleRepo[]);
     mocks.deleteProjectLink.mockResolvedValue(undefined);
 
+    const res = await DELETE(
+      makeRequest({
+        method: 'DELETE',
+        url: 'http://localhost/api/links?backendRepoId=1&frontendRepoId=2',
+        cookie: sessionCookie(),
+        csrf: true,
+      }),
+    );
+
+    expect(res.status).toBe(204);
+    expect(mocks.deleteProjectLink).toHaveBeenCalledWith(FAKE_DB, 1, 2);
+  });
+
+  it('26b. missing frontendRepoId -> 400, no delete', async () => {
     const res = await DELETE(
       makeRequest({
         method: 'DELETE',
@@ -196,7 +210,21 @@ describe('DELETE /api/links', () => {
       }),
     );
 
-    expect(res.status).toBe(204);
-    expect(mocks.deleteProjectLink).toHaveBeenCalledWith(FAKE_DB, 1);
+    expect(res.status).toBe(400);
+    expect(mocks.deleteProjectLink).not.toHaveBeenCalled();
+  });
+
+  it('26c. missing backendRepoId -> 400, no delete', async () => {
+    const res = await DELETE(
+      makeRequest({
+        method: 'DELETE',
+        url: 'http://localhost/api/links?frontendRepoId=2',
+        cookie: sessionCookie(),
+        csrf: true,
+      }),
+    );
+
+    expect(res.status).toBe(400);
+    expect(mocks.deleteProjectLink).not.toHaveBeenCalled();
   });
 });

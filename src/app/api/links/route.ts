@@ -162,10 +162,15 @@ export async function DELETE(req: Request): Promise<Response> {
     if (csrf) return csrf;
 
     const url = new URL(req.url);
-    const raw = url.searchParams.get('backendRepoId');
-    const backendRepoId = raw === null ? Number.NaN : Number(raw);
+    const rawBackend = url.searchParams.get('backendRepoId');
+    const backendRepoId = rawBackend === null ? Number.NaN : Number(rawBackend);
     if (!isPositiveInteger(backendRepoId)) {
       return Response.json({ error: 'backendRepoId must be a positive integer' }, { status: 400 });
+    }
+    const rawFrontend = url.searchParams.get('frontendRepoId');
+    const frontendRepoId = rawFrontend === null ? Number.NaN : Number(rawFrontend);
+    if (!isPositiveInteger(frontendRepoId)) {
+      return Response.json({ error: 'frontendRepoId must be a positive integer' }, { status: 400 });
     }
 
     // Delete needs only backend admin — authorize with frontendRepoId = backendRepoId.
@@ -176,7 +181,9 @@ export async function DELETE(req: Request): Promise<Response> {
       return Response.json({ error: authz.reason }, { status: authz.status });
     }
 
-    await deleteProjectLink(db, backendRepoId);
+    // Pair-level delete (migration 0005): removes only this backend→frontend link, leaving
+    // the backend's other frontend links intact.
+    await deleteProjectLink(db, backendRepoId, frontendRepoId);
     return new Response(null, { status: 204 });
   } catch (error) {
     console.error('[guardrail-dash] DELETE /api/links failed:', errorMessage(error));
