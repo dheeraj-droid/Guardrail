@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { loadEnv, loadQueueEnv, isQueueConfigured } from '@/config/env';
+import { loadEnv, loadQueueEnv, isQueueConfigured, readAppBaseUrl } from '@/config/env';
 
 function completeStub(overrides: Record<string, string | undefined> = {}): NodeJS.ProcessEnv {
   return {
@@ -159,5 +159,21 @@ describe('isQueueConfigured', () => {
       false,
     );
     expect(() => isQueueConfigured(completeQueueStub({ QSTASH_TOKEN: undefined }))).not.toThrow();
+  });
+});
+
+describe('readAppBaseUrl', () => {
+  it('T4c. returns APP_BASE_URL with a single trailing slash stripped', () => {
+    expect(
+      readAppBaseUrl({ NODE_ENV: 'test', APP_BASE_URL: 'https://guardrail.example.com/' }),
+    ).toBe('https://guardrail.example.com');
+    expect(
+      readAppBaseUrl({ NODE_ENV: 'test', APP_BASE_URL: 'https://guardrail.example.com' }),
+    ).toBe('https://guardrail.example.com');
+  });
+
+  it('T4d. returns undefined when APP_BASE_URL is unset or empty', () => {
+    expect(readAppBaseUrl({ NODE_ENV: 'test' })).toBeUndefined();
+    expect(readAppBaseUrl({ NODE_ENV: 'test', APP_BASE_URL: '' })).toBeUndefined();
   });
 });

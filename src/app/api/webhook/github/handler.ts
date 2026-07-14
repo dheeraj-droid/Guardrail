@@ -29,7 +29,7 @@
 // created nothing lets a retry proceed and create fresh; one that created an in-flight
 // run gets it reused -- so it is the sole, delivery-mechanism-agnostic mechanism.
 import { after } from 'next/server';
-import { loadEnv, isQueueConfigured, loadQueueEnv, type QueueEnv } from '@/config/env';
+import { loadEnv, isQueueConfigured, loadQueueEnv, readAppBaseUrl, type QueueEnv } from '@/config/env';
 import { verifyGithubSignature } from '@/lib/crypto/verifySignature';
 import { createDbClient } from '@/lib/db/supabase';
 import { getInstallationClient } from '@/lib/github/client';
@@ -92,6 +92,7 @@ export function makePostHandler(overrides?: {
   pipeline?: typeof processPullRequest;
   queueEnv?: QueueEnv;
   publish?: typeof publishPipelineJob;
+  baseUrl?: string;
 }): (req: Request) => Promise<Response> {
   const defer = overrides?.defer ?? ((task: () => Promise<void>) => after(task));
   const pipeline = overrides?.pipeline ?? processPullRequest;
@@ -170,7 +171,11 @@ export function makePostHandler(overrides?: {
     const queueEnv = overrides?.queueEnv ?? tryLoadQueueEnv();
     if (queueEnv) {
       try {
-        await publish(queueEnv, new URL('/api/webhook/process', req.url).toString(), input);
+        // Pin the publish target to APP_BASE_URL when set (never the spoofable request
+        // Host); fall back to req.url otherwise. The override seam keeps tests off
+        // process.env, mirroring the queueEnv override.
+        const base = overrides?.baseUrl ?? readAppBaseUrl() ?? req.url;
+        await publish(queueEnv, new URL('/api/webhook/process', base).toString(), input);
       } catch (error) {
         console.error(
           '[guardrail] queue publish failed:',

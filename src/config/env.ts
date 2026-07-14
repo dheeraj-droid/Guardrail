@@ -184,3 +184,16 @@ export function isQueueConfigured(source?: NodeJS.ProcessEnv): boolean {
     return false;
   }
 }
+
+/**
+ * The deployment's public base URL (APP_BASE_URL) with any trailing slash stripped, or
+ * undefined when it is unset/empty. Additive accessor — reads the same var validated by
+ * loadDashboardEnv() but WITHOUT requiring the rest of the dashboard config, so the
+ * webhook route can pin its internal QStash publish target to a known-good host regardless
+ * of the (spoofable) request Host, and still fall back to req.url when it is not set.
+ */
+export function readAppBaseUrl(source: NodeJS.ProcessEnv = process.env): string | undefined {
+  const raw = source.APP_BASE_URL;
+  if (raw === undefined || raw === '') return undefined;
+  return raw.replace(/\/$/, '');
+}

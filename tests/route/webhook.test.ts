@@ -468,6 +468,54 @@ describe('POST /api/webhook/github', () => {
     expect(pipelineSpy).not.toHaveBeenCalled();
   });
 
+  // --- T4 (pin QStash publish target to APP_BASE_URL) ---
+
+  it('T4a. baseUrl override set -> publish target derived from it regardless of request Host', async () => {
+    const publishSpy = vi.fn(async (_q: QueueEnv, _url: string, _i: PipelineInput) => {});
+    const handler = makePostHandler({
+      deps: fakeDeps(),
+      queueEnv: fakeQueueEnv(),
+      publish: publishSpy as unknown as typeof publishPipelineJob,
+      baseUrl: 'https://guardrail.example.com',
+    });
+
+    const body = JSON.stringify(basePayload());
+    // Request Host is localhost, but the publish target must use the override host.
+    const req = makeRequest({ body });
+
+    const res = await handler(req);
+
+    expect(res.status).toBe(202);
+    expect(publishSpy).toHaveBeenCalledTimes(1);
+    expect(publishSpy.mock.calls[0]![1]).toBe('https://guardrail.example.com/api/webhook/process');
+  });
+
+  it('T4b. no baseUrl override and APP_BASE_URL unset -> falls back to req.url', async () => {
+    const originalBase = process.env.APP_BASE_URL;
+    delete process.env.APP_BASE_URL;
+    try {
+      const publishSpy = vi.fn(async (_q: QueueEnv, _url: string, _i: PipelineInput) => {});
+      const handler = makePostHandler({
+        deps: fakeDeps(),
+        queueEnv: fakeQueueEnv(),
+        publish: publishSpy as unknown as typeof publishPipelineJob,
+        // baseUrl override deliberately omitted -> readAppBaseUrl() (unset) -> req.url.
+      });
+
+      const body = JSON.stringify(basePayload());
+      const req = makeRequest({ body });
+
+      const res = await handler(req);
+
+      expect(res.status).toBe(202);
+      expect(publishSpy).toHaveBeenCalledTimes(1);
+      expect(publishSpy.mock.calls[0]![1]).toBe('http://localhost/api/webhook/process');
+    } finally {
+      if (originalBase === undefined) delete process.env.APP_BASE_URL;
+      else process.env.APP_BASE_URL = originalBase;
+    }
+  });
+
   // Tests 12/13 (delivery-id claim dedup) were removed along with
   // processed_deliveries/claimDelivery — see webhook/github/handler.ts's header comment
   // for why: a claim committed before work is durably handed off has no safe release
