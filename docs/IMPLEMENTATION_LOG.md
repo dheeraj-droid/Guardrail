@@ -734,3 +734,35 @@ frontend code written by Opus subagents per user instruction)
   repo-root `dev.cmd` (untracked local tooling).
 - Outcome: all three branches merged `--no-ff` to `main`, branches deleted, pushed to
   `origin/main` together with this log entry.
+
+## 2026-07-14 — Canvas particle backdrops + dashboard life pass
+
+- Goal: user wanted "10/10" UI — moving geometric shapes behind the hero and a livelier
+  dashboard. Aggressive-but-engineered motion, canvas particles (not CSS shapes), per
+  approved plan. Opus subagents for the two design tasks, Sonnet for audit/fixes.
+- Hero backdrop (`feat/hero-particle-backdrop`): new `src/app/HeroBackdrop.tsx` — canvas
+  2D particle field (34–80 particles by viewport; outlined coral squares, filled ink
+  circles, plus-marks; 3 depth tiers with speed/alpha/size scaling; rotation; pointer
+  repulsion within 130px; faint ≤118px connective lines). DPR-aware (capped 2),
+  ResizeObserver, pauses on `document.hidden` + IntersectionObserver, reduced-motion =
+  one static frame with live media-query listener, rafId/running guard vs StrictMode
+  double-mount. Mounted last in `.hero`; CSS: `.hero` relative, content z-1, full-bleed
+  `.hero-backdrop` z-0 with radial mask edge fade, opted out of the `rise` nth-child rule.
+- Dashboard life (`feat/dashboard-life`): new `src/app/dashboard/DashboardBackdrop.tsx`
+  (dimmer/sparser echo — ~40% count, ~half alpha, no lines/pointer). `LinkManager.tsx`:
+  staggered entrances (topbar → cards → tbody rows), skeleton→content crossfade,
+  delete-exit sequencing (`deletingId` + 300ms `row-collapse` on `.cell-inner` before the
+  unchanged optimistic delete; error path snaps row back), count-badge pop keyed on
+  length, live-pulsing kicker dot, row hover tint + coral inset marker, button polish.
+- Audit (Sonnet, read-only): no blockers. Two minors fixed on
+  `fix/motion-audit-findings`: `dot-pulse` reworked box-shadow → transform/opacity only;
+  all Delete buttons disabled while any row exit is in flight.
+- Verified: typecheck clean at every merge; `npx vitest run` 260/260 (30 files); no new
+  deps, no console.log, `src/types`/`src/lib` untouched. Live via `next dev`: page 200s,
+  zero console errors; DOM/computed-style checks confirm backdrop absolute z-0,
+  pointer-events none, mask active, hero content z-1, canvas sized. Pixel screenshots
+  blocked — Browser pane hidden this session (`visibilityState: "hidden"`, rAF
+  suspended; same stuck-screenshot behavior as prior sessions) — worth an eyeball on the
+  running dev server.
+- Outcome: three branches merged `--no-ff` to `main`, branches deleted, pushed together
+  with this entry.
