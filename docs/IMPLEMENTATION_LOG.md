@@ -686,3 +686,51 @@ previous entry)
   README.md's "not yet live-verified" caveat removed. No code changes — this is a
   verification-only entry; `git revert -m 1 2312c01` remains the rollback path if
   anything regresses later, unaffected by this entry.
+
+## 2026-07-14
+
+**Session-aware header/landing + motion polish** (three branches, all merged `--no-ff`
+to `main`: `fix/session-aware-landing`, `fix/session-aware-header`, `feat/motion-polish`;
+frontend code written by Opus subagents per user instruction)
+- **Root cause of "sign-in button doesn't change after signing in":** the OAuth callback
+  sets the `guardrail_session` cookie correctly, but neither the landing page nor the
+  shared header ever read it — both unconditionally rendered "Sign in with GitHub".
+- Mid-task discovery: local `main` was 31 commits behind `origin/main` (the whole v2 wave
+  + the premium light editorial redesign above). The first session-aware pass
+  (`fix/session-aware-landing`) was built against the stale UI; reconciled by merging
+  `origin/main`, resolving all 4 conflicts in favor of the redesign, keeping the two new
+  helper files, then re-applying session-awareness to the redesigned UI on
+  `fix/session-aware-header`.
+- Session-awareness (net result): new `src/app/sessionState.ts` (`resolveSessionState()`,
+  tolerant of unset dashboard env — webhook-only deploys stay healthy) + new
+  `src/app/SignOutButton.tsx` (CSRF-headered POST to `/api/auth/logout`). `layout.tsx` is
+  now async/`force-dynamic`: signed-in users get an avatar chip (`github.com/<login>.png`)
+  + `@login` linking to `/dashboard` and a quiet sign-out button; signed-out gets the old
+  Sign-in CTA (only when configured). `page.tsx` hero + CTA band swap sign-in for
+  "Go to dashboard →" when signed in. `LinkManager.tsx` dropped its duplicate Log out
+  button (header owns sign-out now); kept "Signed in as @login". Only the `login` string
+  crosses to the client — the GitHub token never reaches client markup.
+- Motion polish (`feat/motion-polish`): product-panel check-card now *plays* on scroll-in
+  (rows tick build → unit-tests → Guardrail ✗, detail reveals, "Merging is blocked"
+  stamps; runs once, via new `ProductPanel.tsx` + IntersectionObserver); scroll reveals
+  with CSS nth-child stagger (`Reveal.tsx`); proof stats count up (`CountUp.tsx`, rAF to
+  textContent, SSRs final value — no hydration mismatch, no JS = correct numbers); CSS
+  micro-interactions (button press/arrow nudge, card lifts, nav underline, `.h2-accent`
+  underline sweep); dashboard got skeleton loading rows, a row-created highlight flash,
+  and a "Saved ✓" button state. All progressive-enhancement (hidden pre-states only
+  inside gated keyframes — fully visible without JS) and all collapsed under
+  `prefers-reduced-motion`. Proof-strip copy corrected 180 → 260 tests. No new
+  dependencies (Law 13) — CSS + three small client components.
+- Verified on merged `main`: `npm run typecheck` clean, `npm test` 260/260 (30 files),
+  `npm run lint` clean (subagent-run). Live via `next dev` + browser: hero screenshot
+  clean; motion confirmed programmatically (screenshot tool intermittently stuck again,
+  same as prior sessions): `.product-panel-wrap.is-playing` fired, all 4 `.reveal`
+  groups became `.is-visible`, check rows/stamp animations active in computed style,
+  `.h2-accent::after` sweep completed (`scaleX(1)`), count-ups landed on `3s / 260 /
+  100%`, zero console errors. Signed-in state not drivable locally (dashboard env unset)
+  — covered by the tolerant-helper design + suite; worth a click-through on production
+  after deploy.
+- Also: repaired `.claude/launch.json` (pointed at a deleted worktree's `dev.cmd`) with a
+  repo-root `dev.cmd` (untracked local tooling).
+- Outcome: all three branches merged `--no-ff` to `main`, branches deleted, pushed to
+  `origin/main` together with this log entry.
