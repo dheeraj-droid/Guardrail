@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
     "lint": "eslint ."
   },
@@ -21,10 +22,18 @@
     "yaml": "^2.6.0"
   },
   "devDependencies": {
+    "@testing-library/react": "^16",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
+    "@vitest/coverage-v8": "^3",
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.2.10",
+    "jsdom": "^29",
     "vitest": "^3.0.0"
+  },
+  "overrides": {
+    "next": {
+      "postcss": "^8.5.10"
+    }
   }
 }

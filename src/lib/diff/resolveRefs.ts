@@ -105,7 +105,7 @@ export function findExternalRefs(
       if (isRelativeFileRef(raw)) {
         const { filePart, fragment } = splitRef(raw);
         const filePath = resolveRelativePath(basePath, filePart);
-        refs.push({ raw, filePath, fragment });
+        refs.push({ raw, filePath, ...(fragment !== undefined ? { fragment } : {}) });
       }
       // $ref replaces the entire schema — sibling keys are ignored per OpenAPI semantics.
       return;

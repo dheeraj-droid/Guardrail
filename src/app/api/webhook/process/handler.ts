@@ -20,14 +20,13 @@
 // claim table was removed: a claim committed before work is durably handed off has no
 // safe release path on either failure mode, so it silently swallows the very retries
 // it was meant to protect).
-import { loadEnv, loadQueueEnv, type QueueEnv } from '@/config/env';
+import { loadQueueEnv, type QueueEnv } from '@/config/env';
 import { verifyQStashSignature } from '@/lib/queue/qstash';
-import { createDbClient } from '@/lib/db/supabase';
-import { getInstallationClient } from '@/lib/github/client';
 import {
   processPullRequest,
   type PipelineDeps,
 } from '@/lib/pipeline/processPullRequest';
+import { buildDeps } from '@/app/api/webhook/_lib/buildDeps';
 import type { PipelineInput } from '@/types/github';
 
 // Early-rejection guard, NOT a metered stream cap: both GitHub and QStash always send a
@@ -45,16 +44,6 @@ function checkBodySize(req: Request): Response | null {
     return Response.json({ error: 'payload too large' }, { status: 413 });
   }
   return null;
-}
-
-/**
- * Module-private helper — constructs the production PipelineDeps. Called INSIDE the
- * request path (this route awaits the pipeline directly), never at module top level
- * (imports must stay side-effect free for tests and builds without env vars).
- */
-function buildDeps(): PipelineDeps {
-  const env = loadEnv();
-  return { env, db: createDbClient(env), getInstallationClient };
 }
 
 /**

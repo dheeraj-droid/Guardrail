@@ -88,7 +88,7 @@ describe('listAccessibleRepos', () => {
           data: {
             total_count: 1,
             repositories: [
-              repo({ id: 42, full_name: 'acme/no-perms', name: 'no-perms', owner: 'acme', permissions: undefined }),
+              repo({ id: 42, full_name: 'acme/no-perms', name: 'no-perms', owner: 'acme' }),
             ],
           },
         };

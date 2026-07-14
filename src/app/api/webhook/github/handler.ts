@@ -31,13 +31,12 @@
 import { after } from 'next/server';
 import { loadEnv, isQueueConfigured, loadQueueEnv, readAppBaseUrl, type QueueEnv } from '@/config/env';
 import { verifyGithubSignature } from '@/lib/crypto/verifySignature';
-import { createDbClient } from '@/lib/db/supabase';
-import { getInstallationClient } from '@/lib/github/client';
 import { publishPipelineJob } from '@/lib/queue/qstash';
 import {
   processPullRequest,
   type PipelineDeps,
 } from '@/lib/pipeline/processPullRequest';
+import { buildDeps } from '@/app/api/webhook/_lib/buildDeps';
 import type { PipelineInput, PullRequestWebhookPayload } from '@/types/github';
 
 // Early-rejection guard, NOT a metered stream cap: both GitHub and QStash always send a
@@ -57,16 +56,6 @@ function checkBodySize(req: Request): Response | null {
     return Response.json({ error: 'payload too large' }, { status: 413 });
   }
   return null;
-}
-
-/**
- * Module-private helper — constructs the production PipelineDeps. Called INSIDE the
- * after() callback path only, never at module top level (imports must stay side-effect
- * free for tests and builds without env vars).
- */
-function buildDeps(): PipelineDeps {
-  const env = loadEnv();
-  return { env, db: createDbClient(env), getInstallationClient };
 }
 
 /**

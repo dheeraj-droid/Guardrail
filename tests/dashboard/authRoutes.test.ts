@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type * as EnvModule from '@/config/env';
+import type * as OauthModule from '@/lib/auth/oauth';
 
 // These routes call `loadDashboardEnv()` directly (not `buildDashboardDeps()`), so the env
 // module is partially mocked here: `loadDashboardEnv` is a mock, everything else (including
@@ -13,12 +15,12 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/config/env', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/config/env')>();
+  const actual = await importOriginal<typeof EnvModule>();
   return { ...actual, loadDashboardEnv: mocks.loadDashboardEnv };
 });
 
 vi.mock('@/lib/auth/oauth', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/lib/auth/oauth')>();
+  const actual = await importOriginal<typeof OauthModule>();
   return { ...actual, exchangeCodeForToken: mocks.exchangeCodeForToken, fetchViewer: mocks.fetchViewer };
 });
 

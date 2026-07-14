@@ -15,6 +15,9 @@ build/
 out/
 *.tsbuildinfo
 
+# Test coverage output
+coverage/
+
 # Environment / secrets
 .env
 .env.*
