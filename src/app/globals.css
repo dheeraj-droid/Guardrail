@@ -1909,6 +1909,305 @@ input[type='checkbox'] {
   justify-content: flex-end;
 }
 
+/* ============ Dashboard: stats bar (T11) ============ */
+
+.dashboard-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--bg);
+  margin-bottom: 1.5rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.dashboard-stats .stat {
+  padding: 1rem 1.1rem;
+  border-right: 1px solid var(--rule);
+}
+
+.dashboard-stats .stat:last-child {
+  border-right: 0;
+}
+
+.stat-label {
+  display: block;
+  color: var(--faint);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.stat-value {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.3rem;
+  color: var(--ink);
+  font-size: 0.94rem;
+  font-weight: 620;
+}
+
+.status-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--ok);
+  flex: none;
+}
+
+/* ============ Dashboard: grouped link list (T11) ============ */
+
+.link-groups {
+  display: grid;
+  gap: 1.1rem;
+}
+
+.link-group {
+  padding: 1.15rem 1.2rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+
+.repo-line {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.repo-icon {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex: none;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: var(--bg-soft);
+  color: var(--ink);
+}
+
+.repo-line-text {
+  min-width: 0;
+}
+
+.repo-name {
+  color: var(--ink);
+  font-size: 0.95rem;
+  font-weight: 650;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.repo-role {
+  color: var(--faint);
+  font-size: 0.75rem;
+  margin-top: 0.1rem;
+}
+
+.spec-chip {
+  margin-left: auto;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--bg-soft);
+  font-size: 0.72rem;
+  color: var(--ink-dim);
+  white-space: nowrap;
+}
+
+.connector {
+  height: 1.1rem;
+  margin-left: 1.1rem;
+  border-left: 1px solid var(--rule-strong);
+}
+
+.frontend-list {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.frontend-row {
+  padding: 0.75rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--bg);
+  transition:
+    background-color 150ms var(--ease-out),
+    box-shadow 150ms var(--ease-out);
+}
+
+.frontend-row:hover {
+  background: var(--bg-soft);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.frontend-row-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: center;
+}
+
+.frontend-main {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  min-width: 0;
+}
+
+.mini-icon {
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex: none;
+  border-radius: 8px;
+  background: var(--bg-soft);
+  color: var(--muted);
+}
+
+.frontend-text {
+  min-width: 0;
+}
+
+.frontend-name {
+  color: var(--ink);
+  font-size: 0.87rem;
+  font-weight: 620;
+  overflow-wrap: anywhere;
+}
+
+.path {
+  display: block;
+  color: var(--faint);
+  font-size: 0.72rem;
+  margin-top: 0.1rem;
+}
+
+.icon-button {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  flex: none;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    background-color 150ms var(--ease-out),
+    color 150ms var(--ease-out),
+    border-color 150ms var(--ease-out);
+}
+
+.icon-button:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-color: rgba(212, 51, 51, 0.25);
+}
+
+.icon-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Inline delete confirmation, in-context beneath the row it deletes. */
+.confirm {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 1rem;
+  align-items: center;
+  margin-top: 0.7rem;
+  padding: 0.8rem 0.85rem;
+  border: 1px solid rgba(212, 51, 51, 0.25);
+  border-radius: 10px;
+  background: var(--danger-soft);
+  animation: fade-in 180ms var(--ease-out) both;
+}
+
+.confirm strong {
+  display: block;
+  color: var(--ink);
+  font-size: 0.84rem;
+  margin-bottom: 0.1rem;
+}
+
+.confirm p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.confirm .button {
+  padding: 0.4rem 0.7rem;
+  font-size: 0.8rem;
+}
+
+.button-quiet {
+  box-shadow: none;
+  background: transparent;
+  border-color: transparent;
+}
+
+.button-quiet:hover {
+  background: var(--bg-soft);
+  border-color: var(--rule);
+}
+
+.button-danger-solid {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #ffffff;
+  box-shadow: none;
+}
+
+.button-danger-solid:hover {
+  background: #b82b2b;
+  border-color: #b82b2b;
+}
+
+/* Load-failure recovery notice: message + Retry side by side. */
+.dashboard-load-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  max-width: none;
+}
+
+.dashboard-retry {
+  flex: none;
+}
+
+/* Empty admin-repos onboarding card. */
+.dashboard-onboarding {
+  text-align: center;
+  padding: 3rem 1.5rem;
+  display: grid;
+  justify-items: center;
+  gap: 0.35rem;
+}
+
+.dashboard-onboarding .empty-state-hint {
+  max-width: 30rem;
+  margin-bottom: 0.8rem;
+}
+
+.form-upsert-hint {
+  margin: 0;
+  color: var(--ink-dim);
+}
+
+
 /* ============ Motion ============ */
 
 @keyframes spin {
@@ -2020,6 +2319,49 @@ input[type='checkbox'] {
 
   .dashboard-topbar {
     flex-direction: column;
+  }
+
+  .dashboard-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-stats .stat {
+    border-right: 0;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .dashboard-stats .stat:last-child {
+    border-bottom: 0;
+  }
+
+  .card {
+    padding: 1.2rem;
+  }
+
+  .link-group {
+    padding: 1rem;
+  }
+
+  .repo-line {
+    align-items: flex-start;
+  }
+
+  .spec-chip {
+    display: none;
+  }
+
+  .confirm {
+    grid-template-columns: 1fr;
+    gap: 0.7rem;
+  }
+
+  .confirm-actions {
+    justify-content: flex-end;
+  }
+
+  .dashboard-load-error {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .section {
