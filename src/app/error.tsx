@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+
 /**
  * Route-level error boundary for the app. Next.js renders this client component when
  * a rendering error escapes a segment. Kept minimal and dependency-free — it reuses
@@ -19,9 +21,9 @@ export default function Error({ reset }: { error: Error & { digest?: string }; r
           <button type="button" className="button button-primary" onClick={() => reset()}>
             Try again
           </button>
-          <a className="button" href="/">
+          <Link className="button" href="/">
             Back to home
-          </a>
+          </Link>
         </div>
       </div>
     </section>

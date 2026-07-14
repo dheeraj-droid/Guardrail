@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
 /**
@@ -70,15 +71,15 @@ export function MobileNav({
         hidden={!open}
       >
         <nav className="mobile-menu-inner" aria-label="Mobile">
-          <a href="/#how-it-works" onClick={close}>
+          <Link href="/#how-it-works" onClick={close}>
             How it works
-          </a>
-          <a href="/#features" onClick={close}>
+          </Link>
+          <Link href="/#features" onClick={close}>
             Why Guardrail
-          </a>
-          <a href="/#faq" onClick={close}>
+          </Link>
+          <Link href="/#faq" onClick={close}>
             FAQ
-          </a>
+          </Link>
           <a
             href="https://github.com/dheeraj-droid/Guardrail"
             target="_blank"
@@ -88,7 +89,7 @@ export function MobileNav({
             GitHub
           </a>
           {login ? (
-            <a className="mobile-menu-session" href="/dashboard" onClick={close}>
+            <Link className="mobile-menu-session" href="/dashboard" onClick={close}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 className="session-chip-avatar"
@@ -98,7 +99,7 @@ export function MobileNav({
                 height={24}
               />
               <span>@{login}</span>
-            </a>
+            </Link>
           ) : (
             configured && (
               <a
