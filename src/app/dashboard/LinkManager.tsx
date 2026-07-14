@@ -291,7 +291,7 @@ export function LinkManager({ login }: LinkManagerProps) {
                             type="button"
                             className="button button-danger"
                             onClick={() => requestDelete(link.backend_repo_id)}
-                            disabled={link.backend_repo_id === deletingId}
+                            disabled={deletingId !== null}
                           >
                             Delete
                           </button>
