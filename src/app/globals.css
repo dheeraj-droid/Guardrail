@@ -184,12 +184,9 @@ code,
   }
 }
 
-/* Above 720px the mobile nav (hamburger + panel) is not rendered. */
-@media (min-width: 721px) {
-  .mobile-nav {
-    display: none;
-  }
-}
+/* Above 720px the mobile nav (hamburger + panel) is not rendered. This lives with
+   the .mobile-nav base rules below via a min-width guard there; here we only handle
+   the desktop nav collapse. */
 
 /* ---- Skip link: visually hidden until keyboard-focused ---- */
 .skip-link {
@@ -213,8 +210,14 @@ code,
 
 /* ---- Mobile nav ---- */
 .mobile-nav {
-  display: flex;
+  display: none;
   align-items: center;
+}
+
+@media (max-width: 720px) {
+  .mobile-nav {
+    display: flex;
+  }
 }
 
 .mobile-nav-toggle {
