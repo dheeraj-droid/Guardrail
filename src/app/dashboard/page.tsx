@@ -24,5 +24,5 @@ export default async function DashboardPage() {
     redirect('/');
   }
 
-  return <LinkManager login={session.login} />;
+  return <LinkManager login={session.login} appSlug={env.appSlug} />;
 }
