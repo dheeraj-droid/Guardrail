@@ -71,7 +71,7 @@ function makeRequest(opts: {
   return new Request(opts.url ?? 'http://localhost/api/links', {
     method: opts.method,
     headers,
-    body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+    ...(opts.body !== undefined ? { body: JSON.stringify(opts.body) } : {}),
   });
 }
 
