@@ -1,5 +1,6 @@
 import { loadDashboardEnv } from '@/config/env';
 import { resolveSessionState } from './sessionState';
+import { HeroBackdrop } from './HeroBackdrop';
 import { ProductPanel } from './ProductPanel';
 import { Reveal } from './Reveal';
 import { CountUp } from './CountUp';
@@ -91,6 +92,10 @@ export default async function HomePage({
           <li>Fail-open by design</li>
           <li>Zero config to start</li>
         </ul>
+
+        {/* Animated particle field — mounted LAST so it sits behind content
+            (z-index) without shifting the staggered `rise` nth-child delays. */}
+        <HeroBackdrop />
       </section>
 
       {/* ---------------- Product panel: the money shot ---------------- */}
