@@ -2,14 +2,24 @@ import { defineConfig } from 'vitest/config';
 import { fileURLToPath } from 'node:url';
 
 export default defineConfig({
+  // Component tests use JSX; the automatic runtime injects `react/jsx-runtime` so tests
+  // don't need `import React` in scope. Node-env suites contain no JSX so this is inert
+  // for them.
+  esbuild: {
+    jsx: 'automatic',
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
   test: {
+    // Default env is node (the 30 existing suites). Component tests under
+    // tests/components/** opt into jsdom with a per-file `// @vitest-environment jsdom`
+    // pragma, so no environmentMatchGlobs is needed here. The include glob is widened to
+    // .tsx so those component tests are picked up.
     environment: 'node',
-    include: ['tests/**/*.test.ts'],
+    include: ['tests/**/*.test.{ts,tsx}'],
     coverage: {
       provider: 'v8',
       include: ['src/**'],
