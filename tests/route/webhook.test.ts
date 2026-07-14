@@ -6,7 +6,7 @@ import { makePostHandler } from '@/app/api/webhook/github/handler';
 import type { PipelineDeps } from '@/lib/pipeline/processPullRequest';
 import type { PipelineInput, PullRequestWebhookPayload } from '@/types/github';
 import type { Env, QueueEnv } from '@/config/env';
-import { publishPipelineJob } from '@/lib/queue/qstash';
+import type { publishPipelineJob } from '@/lib/queue/qstash';
 
 const SECRET = 'test-webhook-secret';
 

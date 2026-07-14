@@ -1,4 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type * as EnvModule from '@/config/env';
+import type * as GithubClientModule from '@/lib/github/client';
+import type * as UserReposModule from '@/lib/github/userRepos';
 
 // This route calls `loadDashboardEnv()` directly (not `buildDashboardDeps()`), so the env
 // module is partially mocked: `loadDashboardEnv` is a mock, everything else stays real.
@@ -14,17 +17,17 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/config/env', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/config/env')>();
+  const actual = await importOriginal<typeof EnvModule>();
   return { ...actual, loadDashboardEnv: mocks.loadDashboardEnv };
 });
 
 vi.mock('@/lib/github/client', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/lib/github/client')>();
+  const actual = await importOriginal<typeof GithubClientModule>();
   return { ...actual, getUserClient: mocks.getUserClient };
 });
 
 vi.mock('@/lib/github/userRepos', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/lib/github/userRepos')>();
+  const actual = await importOriginal<typeof UserReposModule>();
   return { ...actual, listAccessibleRepos: mocks.listAccessibleRepos };
 });
 

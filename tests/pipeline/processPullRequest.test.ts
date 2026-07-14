@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import type * as FetchExternalRefsModule from '@/lib/github/fetchExternalRefs';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -20,7 +21,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/lib/github/fetchExternalRefs', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/lib/github/fetchExternalRefs')>();
+  const actual = await importOriginal<typeof FetchExternalRefsModule>();
   return {
     ...actual,
     resolveSpecRefs: async (...args: Parameters<typeof actual.resolveSpecRefs>) => {

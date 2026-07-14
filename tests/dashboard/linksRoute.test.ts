@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type * as RequireSessionModule from '@/app/api/_lib/requireSession';
+import type * as UserReposModule from '@/lib/github/userRepos';
 
 // Hoisted so the vi.mock() factories below (themselves hoisted above these imports by
 // vitest) can reference them. Only the pieces that would otherwise do real network/db
@@ -14,12 +16,12 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/app/api/_lib/requireSession', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/app/api/_lib/requireSession')>();
+  const actual = await importOriginal<typeof RequireSessionModule>();
   return { ...actual, buildDashboardDeps: mocks.buildDashboardDeps };
 });
 
 vi.mock('@/lib/github/userRepos', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/lib/github/userRepos')>();
+  const actual = await importOriginal<typeof UserReposModule>();
   return { ...actual, listAccessibleRepos: mocks.listAccessibleRepos };
 });
 

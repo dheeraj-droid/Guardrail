@@ -1,4 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type * as EnvModule from '@/config/env';
+import type * as OauthModule from '@/lib/auth/oauth';
+import type * as UserReposModule from '@/lib/github/userRepos';
 
 // ENCOURAGED bonus coverage: prove the cookies genuinely round-trip across THREE separate
 // route modules (login -> callback -> repos) rather than each route test asserting its own
@@ -15,17 +18,17 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/config/env', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/config/env')>();
+  const actual = await importOriginal<typeof EnvModule>();
   return { ...actual, loadDashboardEnv: mocks.loadDashboardEnv };
 });
 
 vi.mock('@/lib/auth/oauth', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/lib/auth/oauth')>();
+  const actual = await importOriginal<typeof OauthModule>();
   return { ...actual, exchangeCodeForToken: mocks.exchangeCodeForToken, fetchViewer: mocks.fetchViewer };
 });
 
 vi.mock('@/lib/github/userRepos', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/lib/github/userRepos')>();
+  const actual = await importOriginal<typeof UserReposModule>();
   return { ...actual, listAccessibleRepos: mocks.listAccessibleRepos };
 });
 
