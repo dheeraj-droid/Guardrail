@@ -8,7 +8,9 @@
   --ink: #17181c;
   --ink-dim: #43454d;
   --muted: #6e7076;
-  --faint: #9a9ca3;
+  /* Darkened from #9a9ca3 to clear WCAG AA (≥4.5:1) on white for the small text
+     that uses it (table headers, form hints, placeholders, loc labels). */
+  --faint: #7a7c83;
 
   --rule: #e9e9e7;
   --rule-strong: #d9d9d6;
@@ -1025,7 +1027,7 @@ code,
 
 .site-footer-copy {
   margin: 1.6rem 0 0;
-  color: rgba(255, 255, 255, 0.38);
+  color: rgba(255, 255, 255, 0.55);
   font-size: 0.8rem;
 }
 
