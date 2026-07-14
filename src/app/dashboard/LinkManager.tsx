@@ -3,6 +3,11 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import type { AccessibleRepo } from '@/lib/github/userRepos';
 import type { ProjectLinkRow } from '@/lib/db/linkAdmin';
+import { DashboardBackdrop } from './DashboardBackdrop';
+
+// The row exit animation (fade + collapse) runs before the row leaves state.
+// Keep this in sync with the .row-deleting animation duration in globals.css.
+const DELETE_EXIT_MS = 300;
 
 // Every dashboard fetch carries this header — it is the CSRF defense requireCsrf() checks
 // for on the server (see src/app/api/_lib/requireSession.ts).
@@ -42,6 +47,8 @@ export function LinkManager({ login }: LinkManagerProps) {
   // highlight flash on the freshly created row.
   const [saved, setSaved] = useState(false);
   const [justCreatedId, setJustCreatedId] = useState<number | null>(null);
+  // The row currently playing its exit animation before handleDelete removes it.
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   useEffect(() => {
@@ -152,6 +159,19 @@ export function LinkManager({ login }: LinkManagerProps) {
     }
   }
 
+  // Play the row's fade + collapse exit, THEN run the actual delete. The
+  // optimistic-refresh logic (handleDelete) is untouched; this only gates when
+  // it fires so the row animates out instead of vanishing.
+  function requestDelete(backendId: number): void {
+    if (deletingId !== null) return; // one exit at a time
+    setDeletingId(backendId);
+    timers.current.push(
+      setTimeout(() => {
+        void handleDelete(backendId);
+      }, DELETE_EXIT_MS),
+    );
+  }
+
   async function handleDelete(backendId: number): Promise<void> {
     setError(null);
     try {
@@ -165,6 +185,9 @@ export function LinkManager({ login }: LinkManagerProps) {
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'failed to delete the link');
+    } finally {
+      // On success the row is gone after load(); on error it snaps back visible.
+      setDeletingId(null);
     }
   }
 
@@ -172,9 +195,10 @@ export function LinkManager({ login }: LinkManagerProps) {
 
   return (
     <div className="dashboard container">
+      <DashboardBackdrop />
       <div className="dashboard-topbar">
         <div className="dashboard-intro">
-          <span className="section-kicker">Dashboard</span>
+          <span className="section-kicker section-kicker-live">Dashboard</span>
           <h1>Linked repositories</h1>
           <p className="dashboard-signed-in">
             Signed in as <strong>@{login}</strong>
@@ -192,7 +216,11 @@ export function LinkManager({ login }: LinkManagerProps) {
         <div className="card-head">
           <h2>Your links</h2>
           {!loading && links.length > 0 && (
-            <span className="count-badge">{links.length}</span>
+            // key on the value so a changed count remounts the badge and replays
+            // its pop — a static number never animates.
+            <span key={links.length} className="count-badge">
+              {links.length}
+            </span>
           )}
         </div>
 
@@ -228,32 +256,50 @@ export function LinkManager({ login }: LinkManagerProps) {
                 </tr>
               </thead>
               <tbody>
-                {links.map((link) => (
-                  <tr
-                    key={link.id}
-                    className={
-                      link.backend_repo_id === justCreatedId ? 'row-created' : undefined
-                    }
-                  >
-                    <td className="cell-repo">{repoFullName(link.backend_repo_id)}</td>
-                    <td className="cell-repo">{repoFullName(link.frontend_repo_id)}</td>
-                    <td>
-                      <code className="cell-code">{link.openapi_file_path}</code>
-                    </td>
-                    <td>
-                      <code className="cell-code">{link.frontend_src_directory}</code>
-                    </td>
-                    <td className="cell-action">
-                      <button
-                        type="button"
-                        className="button button-danger"
-                        onClick={() => void handleDelete(link.backend_repo_id)}
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {links.map((link) => {
+                  const rowClasses = [
+                    link.backend_repo_id === justCreatedId ? 'row-created' : '',
+                    link.backend_repo_id === deletingId ? 'row-deleting' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ');
+                  return (
+                    <tr key={link.id} className={rowClasses || undefined}>
+                      <td className="cell-repo">
+                        <span className="cell-inner">
+                          {repoFullName(link.backend_repo_id)}
+                        </span>
+                      </td>
+                      <td className="cell-repo">
+                        <span className="cell-inner">
+                          {repoFullName(link.frontend_repo_id)}
+                        </span>
+                      </td>
+                      <td>
+                        <span className="cell-inner">
+                          <code className="cell-code">{link.openapi_file_path}</code>
+                        </span>
+                      </td>
+                      <td>
+                        <span className="cell-inner">
+                          <code className="cell-code">{link.frontend_src_directory}</code>
+                        </span>
+                      </td>
+                      <td className="cell-action">
+                        <span className="cell-inner">
+                          <button
+                            type="button"
+                            className="button button-danger"
+                            onClick={() => requestDelete(link.backend_repo_id)}
+                            disabled={link.backend_repo_id === deletingId}
+                          >
+                            Delete
+                          </button>
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

@@ -297,6 +297,15 @@ code,
 .button-primary:hover {
   background: #2a2b31;
   border-color: #2a2b31;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-card);
+}
+
+/* Keep the press decisive — cancel the hover lift on active (the base
+   .button:active already sinks 1px and drops the shadow). */
+.button-primary:active {
+  transform: translateY(1px);
+  box-shadow: none;
 }
 
 .button-lg {
@@ -1065,8 +1074,46 @@ code,
 /* ============ Dashboard ============ */
 
 .dashboard {
+  position: relative;
   padding-top: 3rem;
   padding-bottom: 4rem;
+}
+
+/* Lift every content child above the ambient canvas. Mirrors the hero pattern
+   (.hero > * / .hero-backdrop): the backdrop rule below is equal specificity and
+   comes LATER in source order, so it keeps z-index 0 on the canvas while these
+   in-flow blocks sit at z-index 1 — without this a positioned canvas would paint
+   ON TOP of the cards. */
+.dashboard > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Ambient particle field — fixed behind the whole dashboard, a dimmer echo of the
+   hero. Never intercepts pointer events; masked so it fades out top and bottom and
+   never fights card legibility. */
+.dashboard-backdrop {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+  animation: none;
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 18%,
+    #000 72%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 18%,
+    #000 72%,
+    transparent 100%
+  );
 }
 
 .dashboard-topbar {
@@ -1097,6 +1144,28 @@ code,
 .dashboard-signed-in strong {
   color: var(--ink);
   font-weight: 600;
+}
+
+/* Entrance: the intro block rises first, then each card staggers in beneath it.
+   `both` fill-mode holds the from{} pre-state before the delay elapses. Plays
+   once on mount (LinkManager mounts once). */
+.dashboard > .dashboard-topbar {
+  animation: rise 520ms var(--ease-out) both;
+}
+.dashboard > .card {
+  animation: rise 560ms var(--ease-out) both;
+}
+.dashboard > .card:nth-of-type(1) {
+  animation-delay: 90ms;
+}
+.dashboard > .card:nth-of-type(2) {
+  animation-delay: 170ms;
+}
+
+/* Live pulse on the kicker dot — the dashboard is a running product. A calm ring
+   breathes out of the coral dot, echoing the hero's eyebrow. */
+.dashboard-intro .section-kicker-live::before {
+  animation: dot-pulse 2.8s var(--ease-in-out) infinite;
 }
 
 /* ============ Cards ============ */
@@ -1175,11 +1244,16 @@ th {
 }
 
 tbody tr {
-  transition: background-color 150ms var(--ease-out);
+  transition:
+    background-color 150ms var(--ease-out),
+    box-shadow 150ms var(--ease-out);
 }
 
+/* Hover: soft tint plus a coral edge marker — a subtle lift without moving the
+   row (transforms on <tr> are unreliable across table layouts). */
 tbody tr:hover {
   background: var(--bg-soft);
+  box-shadow: inset 2px 0 0 var(--accent);
 }
 
 tbody tr:last-child td {
@@ -1202,6 +1276,21 @@ tbody tr:last-child td {
 
 .cell-action {
   text-align: right;
+}
+
+/* Body-cell content lives in an inner block so the delete-exit can collapse
+   max-height/padding on the WRAPPER (never on the <td> or the global th,td rule).
+   Vertical padding moves here from the cell so the collapse removes it too;
+   horizontal padding stays on the <td> to keep columns aligned with the header. */
+.dashboard td {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.cell-inner {
+  display: block;
+  padding-top: 0.7rem;
+  padding-bottom: 0.7rem;
 }
 
 /* ============ Empty / loading states ============ */
@@ -1569,9 +1658,58 @@ input[type='checkbox'] {
   width: 82%;
 }
 
-/* One-shot highlight on a freshly created link row. */
+/* Skeleton → content swap reads as a crossfade: the skeleton unmounts while the
+   real content fades + rises in, rather than popping. */
+.dashboard .table-scroll,
+.dashboard .empty-state {
+  animation: fade-in 420ms var(--ease-out) both;
+}
+
+/* Table rows rise in sequence when the list mounts. */
+.dashboard tbody tr {
+  animation: rise 440ms var(--ease-out) both;
+}
+.dashboard tbody tr:nth-child(1) {
+  animation-delay: 40ms;
+}
+.dashboard tbody tr:nth-child(2) {
+  animation-delay: 95ms;
+}
+.dashboard tbody tr:nth-child(3) {
+  animation-delay: 150ms;
+}
+.dashboard tbody tr:nth-child(4) {
+  animation-delay: 205ms;
+}
+.dashboard tbody tr:nth-child(5) {
+  animation-delay: 260ms;
+}
+.dashboard tbody tr:nth-child(n + 6) {
+  animation-delay: 315ms;
+}
+
+/* One-shot highlight on a freshly created link row — keeps the entrance rise in
+   the same shorthand so the new row still rises AND flashes. */
 tbody tr.row-created {
-  animation: row-flash 1.2s var(--ease-out) both;
+  animation:
+    rise 440ms var(--ease-out) both,
+    row-flash 1.2s var(--ease-out) both;
+}
+
+/* Delete exit: fade + collapse the inner wrapper before the row leaves state.
+   Only max-height/padding/opacity on .cell-inner animate (the sanctioned layout
+   exception); the <td> and global th,td rule are untouched. */
+.dashboard tbody tr.row-deleting .cell-inner {
+  overflow: hidden;
+  animation: row-collapse 300ms var(--ease-out) forwards;
+}
+.dashboard tbody tr.row-deleting td {
+  border-bottom-color: transparent;
+}
+
+/* Count badge pops whenever the number changes (React remounts it via key). */
+.count-badge {
+  animation: badge-pop 380ms var(--ease-out) both;
 }
 
 /* Transient success color on the Save button. */
@@ -1653,6 +1791,60 @@ tbody tr.row-created {
   }
 }
 
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Collapse the row's inner wrapper on delete — starts near the real row height
+   (~2.4rem body + 1.4rem padding) so the collapse reads immediately. */
+@keyframes row-collapse {
+  from {
+    max-height: 3.4rem;
+    opacity: 1;
+    padding-top: 0.7rem;
+    padding-bottom: 0.7rem;
+  }
+  to {
+    max-height: 0;
+    opacity: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+}
+
+/* Gentle overshoot pop for the count badge — subtler than the icon `pop`. */
+@keyframes badge-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  55% {
+    transform: scale(1.12);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Live pulse: a coral ring breathes out of the kicker dot and fades. */
+@keyframes dot-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(233, 86, 74, 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(233, 86, 74, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(233, 86, 74, 0);
+  }
+}
+
 /* Reduced motion: collapse every new animation to its final, static state. The
    global block above already zeroes durations; these make intent explicit and
    keep decorative pre-states (the h2 underline) from being stuck hidden. */
@@ -1667,8 +1859,26 @@ tbody tr.row-created {
   .product-panel-wrap.is-playing .check-detail,
   .product-panel-wrap.is-playing .check-blocked,
   tbody tr.row-created,
-  .skeleton-row {
+  .skeleton-row,
+  .dashboard > .dashboard-topbar,
+  .dashboard > .card,
+  .dashboard .table-scroll,
+  .dashboard .empty-state,
+  .dashboard tbody tr,
+  .dashboard-intro .section-kicker-live::before,
+  .count-badge {
     animation: none !important;
+  }
+
+  /* The delete-exit still needs to happen; the JS timeout fires regardless. Snap
+     the wrapper closed instantly so there is no lingering half-open row. */
+  .dashboard tbody tr.row-deleting .cell-inner {
+    animation: none !important;
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    opacity: 0;
+    overflow: hidden;
   }
 
   .h2-accent::after {
