@@ -333,6 +333,7 @@ code,
 /* ============ Hero ============ */
 
 .hero {
+  position: relative;
   text-align: center;
   padding: 5.5rem 1.5rem 3.5rem;
   max-width: 54rem;
@@ -341,6 +342,36 @@ code,
 
 .hero > * {
   animation: rise 600ms var(--ease-out) both;
+  position: relative;
+  z-index: 1;
+}
+
+/* Full-bleed canvas particle field behind the hero column. Breaks out of the
+   54rem column so particles reach the page edges (Linear-style energy), sits
+   under all content (z-index 0), never intercepts clicks, and fades out at the
+   edges so it never touches headline contrast. Opts out of the `rise` entrance. */
+.hero-backdrop {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100vw;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+  animation: none;
+  -webkit-mask-image: radial-gradient(
+    120% 78% at 50% 42%,
+    #000 42%,
+    rgba(0, 0, 0, 0.55) 66%,
+    transparent 92%
+  );
+  mask-image: radial-gradient(
+    120% 78% at 50% 42%,
+    #000 42%,
+    rgba(0, 0, 0, 0.55) 66%,
+    transparent 92%
+  );
 }
 
 .hero > *:nth-child(2) {
