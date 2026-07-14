@@ -13,9 +13,13 @@ Status: NOT STARTED. Written 2026-07-14 after user review of the deployed dashbo
    content.
 2. **The page is white-on-white.** Page bg, cards, and table are all `#ffffff` with 1px
    outlines. No surface hierarchy = no depth = "flat and cheap" regardless of motion.
-3. **The hero canvas is right in concept, mistuned in execution.** Particles sit behind
-   the headline at gray-mud alpha instead of being pushed to the periphery with clear
-   coral intent.
+3. **The hero has motion but no life.** (Direction updated 2026-07-14 after user
+   feedback: "inspire from Apple design language — ambitious and pristine yet minimal,
+   without slop.") A field of autonomously drifting particles is decoration the user
+   can't touch — Apple-grade "life" comes from *response* (the page reacts to you,
+   instantly and 1:1), *choreography* (one composed entrance that settles), and *one
+   ambitious signature element* — never from looping ambient confetti. The current
+   particle field is replaced, not tuned.
 
 Keep (these worked): staggered entrances, delete-row exit animation, count-badge pop,
 pulsing kicker dot, skeleton crossfade, all reduced-motion handling.
@@ -90,24 +94,55 @@ Files: `src/app/globals.css` only (markup untouched unless a class is missing).
 Acceptance: typecheck passes; visual pass at both viewports; delete-exit and
 row-entrance animations still play.
 
-## Task 4 — Hero particle tuning (branch `feat/hero-particle-tuning`, Opus)
+## Task 4 — Apple-grade hero (branch `feat/hero-apple-life`, Opus)
 
-File: `src/app/HeroBackdrop.tsx` (constants + draw logic only), `src/app/globals.css`
-(mask only if needed).
+Files: `src/app/HeroBackdrop.tsx` (full rewrite, may rename), `src/app/page.tsx`
+(hero markup/typography), `src/app/globals.css`. Read
+`.claude/skills/apple-design/SKILL.md` FIRST — this task implements its principles.
+No new deps (Law 13): springs are hand-rolled rAF (critically damped is ~6 lines),
+not Framer Motion.
 
-1. **Center avoidance**: weight particle home positions toward the periphery — e.g.
-   rejection-sample spawns so density within the central headline column (~54rem,
-   vertically the title/lede zone) is ≤ 1/3 of edge density, or add a center-out
-   density falloff. Particles may drift through the center but must not cluster there.
-2. **Color intent**: shift the mix toward coral — ink shapes drop to the far tier
-   only; near/mid tiers use `--accent`/`--accent-deep`. Raise near-tier alpha slightly
-   (≤ 0.22) so the field reads as deliberate color, not gray mud.
-3. Keep count/speed/repulsion as-is unless testing shows otherwise; all tuning stays
-   in the named constants at the top of the file.
-4. Reduced-motion static frame must respect the same density weighting.
+Life = response + choreography + one signature element. Not ambient confetti.
 
-Acceptance: at 1280px the headline zone is visibly calmer than the edges; particles
-read coral-on-white; typecheck passes.
+1. **Replace the drifting particle field with a responsive dot lattice.** Canvas
+   draws a fine, static grid of dots (~24px cell, ink at ~4–5% alpha) across the hero
+   — structured, pristine, invisible until you move. A soft spotlight (~180–240px
+   radius) follows the pointer: dots inside it brighten toward `--accent` and scale
+   up slightly (≤1.6×), with smooth radial falloff. The spotlight position is driven
+   by a critically damped spring (damping 1.0, response ~0.35s) so it glides — but
+   updates start the same frame the pointer moves (respond on input, kill latency).
+   No autonomous motion at rest except at most ONE idle element (see 3). Touch
+   devices: spotlight follows touch during scroll-overs or is simply absent — never
+   fake a wandering cursor.
+2. **Choreographed entrance, runs once.** Kicker → headline → lede → CTAs → visual,
+   each rising ~12px with opacity, spring-like ease (`cubic-bezier(0.22, 1, 0.36, 1)`),
+   ~70ms stagger. The lattice fades in last, underneath. Nothing loops afterward;
+   the page settles. Entrance must not lock out input (interruptibility: content is
+   clickable immediately).
+3. **One signature ambitious element (choose ONE, keep the rest quiet):** the
+   recommended pick is a slow "contract scan" beam — a ~full-width, very soft coral
+   gradient band that sweeps the lattice once on load (after the entrance) and then
+   only on pointer re-entry into the hero, echoing what Guardrail does (scanning
+   contracts). Alternative if the beam prototypes poorly: pointer-parallax on the
+   hero art (≤6px translation, spring-damped). Not both.
+4. **Pristine typography (Apple §15).** Headline: `clamp()` display size, line-height
+   ~1.05, letter-spacing `-0.02em`, build hierarchy with weight — check the current
+   values and correct any fixed/positive tracking on display text. Body/lede stays
+   near tracking 0, leading ~1.5.
+5. **Material chrome (Apple §12).** Topbar becomes a translucent layer:
+   `rgba(255,255,255,0.72)` + `backdrop-filter: blur(20px) saturate(180%)`, hard 1px
+   bottom border replaced by a scroll edge effect (border/shadow fades in only once
+   content has scrolled under it). Honor `prefers-reduced-transparency` (solid bg,
+   no blur).
+6. **Press feedback everywhere in the hero:** CTAs scale to 0.97 on `:active` with a
+   ~100ms ease-out — feedback on pointer-down, not release.
+7. **Reduced motion:** lattice renders static (no spotlight tracking, or opacity-only
+   highlight), no entrance translation (opacity cross-fade only), no beam sweep.
+
+Acceptance: at rest the hero is nearly still and pristine; moving the pointer makes
+it feel alive with zero perceptible latency; entrance plays once and settles; exactly
+one signature motion element exists; typography passes the §15 checks; typecheck
+passes; reduced-motion/transparency verified via emulation.
 
 ## Task 5 — Verification + log + ship (orchestrator, Sonnet for mechanical parts)
 
@@ -127,6 +162,8 @@ read coral-on-white; typecheck passes.
 
 - Dashboard: zero floating particles; soft-gray page / white elevated cards; header
   band ambience; polished table; all kept animations intact.
-- Hero: periphery-weighted coral particle field, calm headline zone.
+- Hero: still and pristine at rest; responsive dot lattice + spotlight under the
+  pointer; one-shot choreographed entrance; exactly one signature motion element;
+  Apple-grade typography and translucent chrome.
 - All gates green (typecheck, 260 tests), reduced-motion clean, no new deps, log
   updated, pushed, and verified on the production deployment.
