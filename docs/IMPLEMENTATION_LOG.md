@@ -766,3 +766,21 @@ frontend code written by Opus subagents per user instruction)
   running dev server.
 - Outcome: three branches merged `--no-ff` to `main`, branches deleted, pushed together
   with this entry.
+
+## 2026-07-14
+
+**v3 plan authored** (`docs/plan-v3`, merged to `main`)
+- New `docs/PLAN_V3.md`: scopes v3 as Track Q (severity/ignore rules via a repo-versioned
+  `guardrail.config.json`, exact-match `ignore`/`warn` only), Track R (run history —
+  `pipeline_runs` migration 0006, fail-open `insertPipelineRun`, dashboard runs API + UI),
+  Wave X0 adoption of the v2 §8 Law amendments into CLAUDE.md, and a hard-gated Track S
+  (GraphQL SDL — proceeds only if `graphql@^16` is approved as a Law 13 amendment).
+- New in this plan: an explicit model/agent policy — Fable (main session) as
+  advisor/orchestrator (specs, adversarial design review before each build, wave gates,
+  merges, live verification); Sonnet `module-builder` for mechanical tracks (X0, Q2, R1,
+  R2); Opus `module-builder` for verdict-affecting/glue tracks (Q1 rules engine, Wave X2
+  Track T integration); Opus `spec-auditor` for Wave X3.
+- One planned frozen-type edit (`PipelineRunRow` added to `src/types/db.ts`); `rules.ts`
+  is a new additive types file. Wave X1 verified file-disjoint on paper.
+- Outcome: plan document only — no implementation started. Merged `--no-ff`, branch
+  deleted, pushed to `origin/main`.
