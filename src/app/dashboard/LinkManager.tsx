@@ -162,23 +162,26 @@ export function LinkManager({ login }: LinkManagerProps) {
   // Play the row's fade + collapse exit, THEN run the actual delete. The
   // optimistic-refresh logic (handleDelete) is untouched; this only gates when
   // it fires so the row animates out instead of vanishing.
-  function requestDelete(backendId: number): void {
+  function requestDelete(backendId: number, frontendId: number): void {
     if (deletingId !== null) return; // one exit at a time
     setDeletingId(backendId);
     timers.current.push(
       setTimeout(() => {
-        void handleDelete(backendId);
+        void handleDelete(backendId, frontendId);
       }, DELETE_EXIT_MS),
     );
   }
 
-  async function handleDelete(backendId: number): Promise<void> {
+  async function handleDelete(backendId: number, frontendId: number): Promise<void> {
     setError(null);
     try {
-      const res = await fetch(`/api/links?backendRepoId=${backendId}`, {
-        method: 'DELETE',
-        headers: CSRF_HEADERS,
-      });
+      const res = await fetch(
+        `/api/links?backendRepoId=${backendId}&frontendRepoId=${frontendId}`,
+        {
+          method: 'DELETE',
+          headers: CSRF_HEADERS,
+        },
+      );
       if (!res.ok) {
         throw new Error(await readErrorReason(res, 'failed to delete the link'));
       }
@@ -290,7 +293,7 @@ export function LinkManager({ login }: LinkManagerProps) {
                           <button
                             type="button"
                             className="button button-danger"
-                            onClick={() => requestDelete(link.backend_repo_id)}
+                            onClick={() => requestDelete(link.backend_repo_id, link.frontend_repo_id)}
                             disabled={deletingId !== null}
                           >
                             Delete

@@ -15,8 +15,8 @@ function makeDb(canned: { data: unknown; error: unknown }) {
     inValues?: unknown;
     upsertRow?: unknown;
     upsertOptions?: unknown;
-    deleteEqColumn?: string;
-    deleteEqValue?: unknown;
+    deleteEqColumns?: string[];
+    deleteEqValues?: unknown[];
   } = {};
 
   const resolved = () => Promise.resolve(canned);
@@ -38,13 +38,18 @@ function makeDb(canned: { data: unknown; error: unknown }) {
       return resolved();
     },
     delete() {
-      return {
+      calls.deleteEqColumns = [];
+      calls.deleteEqValues = [];
+      // Chainable .eq() so pair-level deletes (two .eq() calls) can be asserted; the final
+      // .eq() in the chain resolves the query.
+      const chain = {
         eq(column: string, value: unknown) {
-          calls.deleteEqColumn = column;
-          calls.deleteEqValue = value;
-          return resolved();
+          calls.deleteEqColumns!.push(column);
+          calls.deleteEqValues!.push(value);
+          return Object.assign(resolved(), chain);
         },
       };
+      return chain;
     },
   };
 
@@ -68,13 +73,13 @@ const ROW_INPUT = {
 };
 
 describe('upsertProjectLink', () => {
-  it('17. upserts with onConflict backend_repo_id and the ownership fields intact', async () => {
+  it('17. upserts with onConflict backend_repo_id,frontend_repo_id and the ownership fields intact', async () => {
     const { db, calls } = makeDb({ data: null, error: null });
 
     await upsertProjectLink(db, ROW_INPUT);
 
     expect(calls.from).toBe('project_links');
-    expect(calls.upsertOptions).toEqual({ onConflict: 'backend_repo_id' });
+    expect(calls.upsertOptions).toEqual({ onConflict: 'backend_repo_id,frontend_repo_id' });
     expect(calls.upsertRow).toMatchObject(ROW_INPUT);
     expect(typeof (calls.upsertRow as { updated_at: string }).updated_at).toBe('string');
   });
@@ -116,19 +121,19 @@ describe('listLinksForRepoIds', () => {
 });
 
 describe('deleteProjectLink', () => {
-  it('20. happy path: deletes by backend_repo_id, no throw', async () => {
+  it('20. happy path: deletes by the (backend_repo_id, frontend_repo_id) pair, no throw', async () => {
     const { db, calls } = makeDb({ data: null, error: null });
 
-    await expect(deleteProjectLink(db, 100)).resolves.toBeUndefined();
+    await expect(deleteProjectLink(db, 100, 200)).resolves.toBeUndefined();
 
     expect(calls.from).toBe('project_links');
-    expect(calls.deleteEqColumn).toBe('backend_repo_id');
-    expect(calls.deleteEqValue).toBe(100);
+    expect(calls.deleteEqColumns).toEqual(['backend_repo_id', 'frontend_repo_id']);
+    expect(calls.deleteEqValues).toEqual([100, 200]);
   });
 
   it("18c. delete error -> throws containing 'project_links delete failed'", async () => {
     const { db } = makeDb({ data: null, error: { message: 'nope' } });
 
-    await expect(deleteProjectLink(db, 100)).rejects.toThrow(/project_links delete failed: nope/);
+    await expect(deleteProjectLink(db, 100, 200)).rejects.toThrow(/project_links delete failed: nope/);
   });
 });
