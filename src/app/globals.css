@@ -1832,16 +1832,20 @@ tbody tr.row-created {
   }
 }
 
-/* Live pulse: a coral ring breathes out of the kicker dot and fades. */
+/* Live pulse: the kicker dot itself breathes — scales up and fades slightly,
+   then settles back. transform/opacity only (no box-shadow) per the motion rule. */
 @keyframes dot-pulse {
   0% {
-    box-shadow: 0 0 0 0 rgba(233, 86, 74, 0.45);
+    transform: scale(1);
+    opacity: 1;
   }
-  70% {
-    box-shadow: 0 0 0 6px rgba(233, 86, 74, 0);
+  50% {
+    transform: scale(1.45);
+    opacity: 0.55;
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(233, 86, 74, 0);
+    transform: scale(1);
+    opacity: 1;
   }
 }
 
