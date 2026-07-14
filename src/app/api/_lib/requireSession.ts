@@ -2,6 +2,14 @@
 // `_` prefix opts this folder out of Next.js routing entirely, and a route.ts may export
 // ONLY HTTP handlers + segment config (route-file law) — so session reading, CSRF
 // checking, and dependency construction all live here instead.
+//
+// ACCEPTED RISK (T5, from the security audit): there is NO app-level rate limiting on the
+// dashboard/auth routes. A caller can hammer these endpoints as fast as the platform lets
+// them. Accepted because the sensitive mutations are all authorization-gated (authorizeLink
+// against a server-fetched accessible list) and the OAuth callback is CSRF-protected by the
+// single-use state cookie; abuse is bounded by GitHub's own rate limits on the upstream
+// calls. Deploy behind a platform/edge rate limiter (e.g. Vercel/WAF) if stricter limits
+// are required.
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { loadDashboardEnv, loadEnv, type DashboardEnv } from '@/config/env';
 import { createDbClient } from '@/lib/db/supabase';

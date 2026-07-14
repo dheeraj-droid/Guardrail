@@ -73,6 +73,9 @@ function signedRequest(payload: PullRequestWebhookPayload, secret: string): Requ
   const body = JSON.stringify(payload);
   const headers = new Headers();
   headers.set('content-type', 'application/json');
+  // The handler's T3 body-size guard requires a Content-Length; Node's Request does not
+  // auto-populate it from a string body, so set the real byte length here.
+  headers.set('content-length', String(Buffer.byteLength(body)));
   headers.set('x-github-event', 'pull_request');
   headers.set('x-hub-signature-256', sign(body, secret));
   return new Request('http://localhost/api/webhook/github', { method: 'POST', headers, body });

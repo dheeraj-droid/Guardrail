@@ -1,5 +1,6 @@
 // Spec K — OAuth callback. route.ts exports ONLY handlers + segment config.
 import { loadDashboardEnv } from '@/config/env';
+import { timingSafeEqual } from 'node:crypto';
 import { exchangeCodeForToken, fetchViewer, STATE_COOKIE } from '@/lib/auth/oauth';
 import { getUserClient } from '@/lib/github/client';
 import { SESSION_COOKIE, SESSION_TTL_MS, sealSession } from '@/lib/auth/session';
@@ -7,6 +8,18 @@ import { SESSION_COOKIE, SESSION_TTL_MS, sealSession } from '@/lib/auth/session'
 export const runtime = 'nodejs'; // node:crypto (sealSession)
 
 const CLEAR_STATE_COOKIE = `${STATE_COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`;
+
+/**
+ * Constant-time string equality over UTF-8 bytes. Length mismatch → false without calling
+ * timingSafeEqual (which THROWS on differing lengths). Guards the OAuth state compare
+ * against timing side channels (T5).
+ */
+function safeEqual(a: string, b: string): boolean {
+  const bufA = Buffer.from(a, 'utf8');
+  const bufB = Buffer.from(b, 'utf8');
+  if (bufA.length !== bufB.length) return false;
+  return timingSafeEqual(bufA, bufB);
+}
 
 /** Read one named cookie's raw value out of a `Cookie` request header. */
 function readCookie(header: string | null, name: string): string | null {
@@ -38,7 +51,8 @@ export async function GET(req: Request): Promise<Response> {
 
     // MUST: state param present AND equal to the STATE_COOKIE value, else 403. The state
     // cookie is cleared in the response EITHER WAY (single-use, whether it matched or not).
-    if (!state || !cookieState || state !== cookieState) {
+    // Constant-time compare (safeEqual) — never `===` on the state values (T5).
+    if (!state || !cookieState || !safeEqual(state, cookieState)) {
       const headers = new Headers();
       headers.append('Set-Cookie', CLEAR_STATE_COOKIE);
       return Response.json({ error: 'invalid oauth state' }, { status: 403, headers });

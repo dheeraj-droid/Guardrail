@@ -189,6 +189,11 @@ Security model, briefly (full detail in [docs/specs/K-onboarding-dashboard.md](d
   permission on it **and** the GitHub App is installed there.
 - Mutating requests must carry a custom header (`x-guardrail-request: dashboard`), a
   same-site CSRF defense that cross-site requests cannot forge.
+- The session and OAuth-state cookies use the `__Host-` name prefix, which browsers only
+  accept when set with `Secure` over HTTPS. **Local dashboard dev over plain `http://`
+  will not persist these cookies** — run the dev server with HTTPS
+  (`next dev --experimental-https`) and open the app over `https://localhost` when working
+  on sign-in locally. Deployed HTTPS environments are unaffected.
 
 See [docs/DEPLOY.md](docs/DEPLOY.md) Step 6 to turn it on.
 

@@ -197,3 +197,55 @@ export function readAppBaseUrl(source: NodeJS.ProcessEnv = process.env): string 
   if (raw === undefined || raw === '') return undefined;
   return raw.replace(/\/$/, '');
 }
+
+// ---------------------------------------------------------------------------------------
+// T5 — GitHub Marketplace webhook (D2). A SEPARATE, opt-in exception to the frozen-W0
+// rule: ADDITIVE export alongside Env/loadEnv, never a modification of them. Marketplace
+// events are a distinct GitHub webhook with their OWN secret, so deployments that never
+// sell through the Marketplace keep working without configuring it. Validated ONLY here,
+// never folded into loadEnv()/Env — mirrors the loadQueueEnv optional-feature pattern.
+// ---------------------------------------------------------------------------------------
+
+export interface MarketplaceEnv {
+  webhookSecret: string;
+}
+
+const REQUIRED_MARKETPLACE_VARS = ['GITHUB_MARKETPLACE_WEBHOOK_SECRET'] as const;
+
+let memoizedMarketplace: MarketplaceEnv | undefined;
+
+/**
+ * Load and validate marketplace-only environment configuration.
+ * @param source override for process.env (tests pass a stub); never mutated. When a
+ *   source is provided the module-level memo is bypassed so tests stay isolated.
+ */
+export function loadMarketplaceEnv(source?: NodeJS.ProcessEnv): MarketplaceEnv {
+  const usingProcessEnv = source === undefined;
+  if (usingProcessEnv && memoizedMarketplace) return memoizedMarketplace;
+
+  const src = source ?? process.env;
+
+  for (const name of REQUIRED_MARKETPLACE_VARS) {
+    const value = src[name];
+    if (value === undefined || value === '') {
+      throw new Error(`Missing required env var: ${name}`);
+    }
+  }
+
+  const env: MarketplaceEnv = {
+    webhookSecret: src.GITHUB_MARKETPLACE_WEBHOOK_SECRET!,
+  };
+
+  if (usingProcessEnv) memoizedMarketplace = env;
+  return env;
+}
+
+/** True iff GITHUB_MARKETPLACE_WEBHOOK_SECRET is a non-empty string — does not throw. */
+export function isMarketplaceConfigured(source?: NodeJS.ProcessEnv): boolean {
+  try {
+    loadMarketplaceEnv(source);
+    return true;
+  } catch {
+    return false;
+  }
+}

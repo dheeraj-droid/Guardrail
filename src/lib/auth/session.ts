@@ -1,6 +1,13 @@
 // Spec K — session sealing. PURE: node:crypto only, no env access, no IO. The dashboard's
 // only durable secret-bearing artifact is this sealed cookie value; get it wrong and the
 // GitHub user token (SessionData.token) either leaks or can be forged.
+//
+// ACCEPTED RISK (T5, from the security audit): there is NO server-side session revocation.
+// A sealed cookie is valid until `expiresAt`; we cannot invalidate one early (e.g. on a
+// "sign out everywhere" or a suspected token leak) short of rotating GUARDRAIL_SESSION_SECRET,
+// which logs everyone out at once. Accepted because sessions are short-lived (8h TTL) and
+// the token they carry is itself revocable at GitHub. A server-side session store would be
+// the fix if per-session revocation is ever required.
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 
 /**
@@ -15,7 +22,10 @@ export interface SessionData {
   expiresAt: number; // epoch ms
 }
 
-export const SESSION_COOKIE = 'guardrail_session';
+// The `__Host-` prefix is a browser-enforced hardening (T5): the cookie is only accepted
+// when set with Secure, Path=/, and NO Domain attribute — every Set-Cookie string for this
+// name already qualifies. Renaming invalidates any pre-existing sessions exactly once.
+export const SESSION_COOKIE = '__Host-guardrail_session';
 export const SESSION_TTL_MS = 8 * 60 * 60 * 1000; // 8h
 
 const ALGORITHM = 'aes-256-gcm';

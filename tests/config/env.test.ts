@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { loadEnv, loadQueueEnv, isQueueConfigured, readAppBaseUrl } from '@/config/env';
+import { loadEnv, loadQueueEnv, isQueueConfigured, readAppBaseUrl, loadMarketplaceEnv, isMarketplaceConfigured } from '@/config/env';
 
 function completeStub(overrides: Record<string, string | undefined> = {}): NodeJS.ProcessEnv {
   return {
@@ -175,5 +175,32 @@ describe('readAppBaseUrl', () => {
   it('T4d. returns undefined when APP_BASE_URL is unset or empty', () => {
     expect(readAppBaseUrl({ NODE_ENV: 'test' })).toBeUndefined();
     expect(readAppBaseUrl({ NODE_ENV: 'test', APP_BASE_URL: '' })).toBeUndefined();
+  });
+});
+
+describe('loadMarketplaceEnv / isMarketplaceConfigured', () => {
+  it('T5m1. loadMarketplaceEnv returns the secret when set', () => {
+    const env = loadMarketplaceEnv({
+      NODE_ENV: 'test',
+      GITHUB_MARKETPLACE_WEBHOOK_SECRET: 'mp-secret',
+    });
+    expect(env.webhookSecret).toBe('mp-secret');
+  });
+
+  it('T5m2. loadMarketplaceEnv throws when the secret is unset or empty', () => {
+    expect(() => loadMarketplaceEnv({ NODE_ENV: 'test' })).toThrow(
+      /GITHUB_MARKETPLACE_WEBHOOK_SECRET/,
+    );
+    expect(() =>
+      loadMarketplaceEnv({ NODE_ENV: 'test', GITHUB_MARKETPLACE_WEBHOOK_SECRET: '' }),
+    ).toThrow(/GITHUB_MARKETPLACE_WEBHOOK_SECRET/);
+  });
+
+  it('T5m3. isMarketplaceConfigured reflects presence and never throws', () => {
+    expect(
+      isMarketplaceConfigured({ NODE_ENV: 'test', GITHUB_MARKETPLACE_WEBHOOK_SECRET: 'mp-secret' }),
+    ).toBe(true);
+    expect(isMarketplaceConfigured({ NODE_ENV: 'test' })).toBe(false);
+    expect(() => isMarketplaceConfigured({ NODE_ENV: 'test' })).not.toThrow();
   });
 });
