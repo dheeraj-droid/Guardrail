@@ -38,9 +38,13 @@ interface Particle {
   spin: number;
 }
 
-// Brand tokens, resolved to rgb triples so we can vary alpha per particle/tier.
-const INK = '23, 24, 28'; // --ink #17181c
-const CORAL = '233, 86, 74'; // --accent #e9564a
+// Particle colors are read from CSS custom properties at setup (and re-read on a
+// color-scheme change), so light/dark are driven entirely by globals.css tokens:
+//   --backdrop-particle  (ink-toned circles)
+//   --backdrop-accent    (coral squares + plus marks)
+// Each is an "r, g, b" triple so we can vary alpha per particle/tier.
+const FALLBACK_INK = '23, 24, 28'; // --ink #17181c
+const FALLBACK_ACCENT = '233, 86, 74'; // --accent #e9564a
 
 // Tuning — deliberately dimmer/slower than the hero's TIERS so this reads as
 // ambience, never decoration competing with the cards.
@@ -73,11 +77,26 @@ export function DashboardBackdrop() {
     if (!ctx) return;
 
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const darkScheme = window.matchMedia('(prefers-color-scheme: dark)');
 
     let width = 0;
     let height = 0;
     let dpr = 1;
     let particles: Particle[] = [];
+
+    // Live colors, read from CSS custom properties and refreshed on scheme change.
+    let inkColor = FALLBACK_INK;
+    let accentColor = FALLBACK_ACCENT;
+
+    function readColors() {
+      const styles = getComputedStyle(document.documentElement);
+      const read = (name: string, fallback: string) => {
+        const v = styles.getPropertyValue(name).trim();
+        return v || fallback;
+      };
+      inkColor = read('--backdrop-particle', FALLBACK_INK);
+      accentColor = read('--backdrop-accent', FALLBACK_ACCENT);
+    }
 
     let rafId = 0;
     let running = false;
@@ -121,7 +140,7 @@ export function DashboardBackdrop() {
     }
 
     function drawParticle(p: Particle) {
-      const color = p.shape === 'circle' ? INK : CORAL;
+      const color = p.shape === 'circle' ? inkColor : accentColor;
       ctx!.save();
       ctx!.translate(p.x, p.y);
       ctx!.rotate(p.angle);
@@ -212,6 +231,13 @@ export function DashboardBackdrop() {
       }
     }
 
+    // Re-read tokens when the OS color scheme flips; redraw so a paused/static
+    // field (hidden tab, out of view, or reduced-motion) adopts the new colors.
+    function onSchemeChange() {
+      readColors();
+      if (!running) draw();
+    }
+
     const ro = new ResizeObserver(() => resize());
     ro.observe(canvas);
 
@@ -227,7 +253,9 @@ export function DashboardBackdrop() {
 
     document.addEventListener('visibilitychange', onVisibility);
     reducedMotion.addEventListener('change', onReducedChange);
+    darkScheme.addEventListener('change', onSchemeChange);
 
+    readColors();
     resize();
     start();
 
@@ -237,6 +265,7 @@ export function DashboardBackdrop() {
       io.disconnect();
       document.removeEventListener('visibilitychange', onVisibility);
       reducedMotion.removeEventListener('change', onReducedChange);
+      darkScheme.removeEventListener('change', onSchemeChange);
     };
   }, []);
 

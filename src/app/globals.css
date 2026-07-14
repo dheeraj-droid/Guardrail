@@ -1,5 +1,5 @@
 :root {
-  color-scheme: light;
+  color-scheme: light dark;
 
   /* ---- Surfaces ---- */
   --bg: #ffffff;
@@ -24,6 +24,54 @@
   --danger: #d43333;
   --danger-soft: #fdf0ef;
 
+  /* ---- Tokens for hard-coded colors that must flip in dark mode. Light
+     values below are the EXACT current colors, so light mode is unchanged. ---- */
+  --on-accent: #ffffff; /* text/icon on top of --ink or --accent fills */
+  --button-primary-hover: #2a2b31;
+  --button-danger-solid-hover: #b82b2b;
+  --header-bg: rgba(255, 255, 255, 0.82); /* translucent sticky header */
+  --card-solid: #ffffff; /* the product-panel check-card, always a light card */
+  --check-detail-bg: #fffafa;
+  --code-inline-bg: rgba(23, 24, 28, 0.06);
+  --code-block-bg: #101216; /* dark code sample inside the slate feature */
+  --code-key: #ff8a81;
+  --panel-grid: rgba(255, 255, 255, 0.035); /* grid texture on the slate panel */
+  --panel-ink: #ffffff; /* headings/text laid on the dark slate panel */
+  --panel-ink-dim: rgba(255, 255, 255, 0.62); /* body copy on the slate panel */
+  --panel-ink-faint: rgba(255, 255, 255, 0.52); /* tags/labels on the slate panel */
+  --panel-ink-quiet: rgba(255, 255, 255, 0.5); /* step labels on the slate panel */
+  --panel-hairline: rgba(255, 255, 255, 0.1);
+  --demo-ink: rgba(255, 255, 255, 0.66);
+  --demo-ink-strong: rgba(255, 255, 255, 0.72);
+  --code-ln: rgba(255, 255, 255, 0.24);
+  --code-comment: rgba(255, 255, 255, 0.34);
+  --cta-ink-dim: rgba(255, 255, 255, 0.58);
+  --cta-ghost-border: rgba(255, 255, 255, 0.22);
+  --cta-ghost-border-hover: rgba(255, 255, 255, 0.35);
+  --cta-ghost-hover-bg: rgba(255, 255, 255, 0.08);
+  --cta-ring: rgba(233, 86, 74, 0.13);
+  --footer-bg: #0f1013;
+  --footer-ink: rgba(255, 255, 255, 0.72);
+  --footer-ink-dim: rgba(255, 255, 255, 0.55);
+  --footer-ink-strong: #ffffff;
+  --footer-link: rgba(255, 255, 255, 0.6);
+  --footer-wordmark: rgba(255, 255, 255, 0.055);
+  --ok-border: rgba(26, 158, 80, 0.25);
+  --danger-border: rgba(212, 51, 51, 0.35);
+  --danger-border-hover: rgba(212, 51, 51, 0.55);
+  --danger-border-soft: rgba(212, 51, 51, 0.25);
+  --danger-border-faint: rgba(212, 51, 51, 0.18);
+  --danger-usage-bg: rgba(212, 51, 51, 0.08);
+  --focus-ring: rgba(23, 24, 28, 0.08);
+  --row-flash: rgba(233, 86, 74, 0.12);
+
+  /* ---- Canvas backdrop particle/link colors (read by HeroBackdrop /
+     DashboardBackdrop via getComputedStyle). rgb triples so the canvas can
+     vary alpha per particle/tier. ---- */
+  --backdrop-particle: 23, 24, 28; /* --ink #17181c, used for circles + links */
+  --backdrop-link: 23, 24, 28;
+  --backdrop-accent: 233, 86, 74; /* --accent #e9564a, used for squares + plus */
+
   /* ---- Radii ---- */
   --radius-sm: 8px;
   --radius: 12px;
@@ -40,6 +88,88 @@
   --shadow-float: 0 2px 6px rgba(10, 12, 20, 0.24), 0 24px 48px -24px rgba(10, 12, 20, 0.45);
 
   --maxw: 1120px;
+}
+
+/* ============ Dark mode (prefers-color-scheme) ============
+   Every override lives here; the :root light values above are untouched, so
+   light mode renders pixel-identically. Surfaces move to a deep near-black slate
+   consistent with the footer (#0f1013); ink flips light; borders/shadows are
+   retuned for dark; the coral accent is lifted slightly for contrast on dark
+   backgrounds. Panels/footer that were ALREADY dark in light mode keep their
+   look — their tokens resolve to near-identical dark values. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* ---- Surfaces ---- */
+    --bg: #0f1013;
+    --bg-soft: #17191f;
+    --bg-panel: #1c1f27;
+    --ink: #f3f4f6;
+    --ink-dim: #c4c6cd;
+    --muted: #9ea1aa;
+    --faint: #babcc4; /* small text — lifted for AA (≥4.5:1) on the dark surfaces */
+
+    --rule: #2a2c34;
+    --rule-strong: #3a3d47;
+
+    /* Coral lifted for legibility/contrast on dark backgrounds. */
+    --accent: #ff6f63;
+    --accent-deep: #ff8a80;
+
+    --ok: #3fca77;
+    --ok-soft: #12261a;
+    --danger: #ff6b6b;
+    --danger-soft: #2a1516;
+
+    /* ---- Tokens that flip in dark ---- */
+    --on-accent: #0f1013; /* dark ink on the (now light-coral / bright) fills */
+    --button-primary-hover: #e6e7ea;
+    --button-danger-solid-hover: #ff8585;
+    --header-bg: rgba(15, 16, 19, 0.82);
+    --card-solid: #1c1f27; /* the check-card mockup — dark card on dark panel */
+    --check-detail-bg: #241416;
+    --code-inline-bg: rgba(255, 255, 255, 0.08);
+    --code-block-bg: #0b0c0f;
+    --code-key: #ff8a81;
+    --panel-grid: rgba(255, 255, 255, 0.03);
+    --panel-ink: #f3f4f6;
+    --panel-ink-dim: rgba(255, 255, 255, 0.66);
+    --panel-ink-faint: rgba(255, 255, 255, 0.56);
+    --panel-ink-quiet: rgba(255, 255, 255, 0.55);
+    --panel-hairline: rgba(255, 255, 255, 0.12);
+    --demo-ink: rgba(255, 255, 255, 0.7);
+    --demo-ink-strong: rgba(255, 255, 255, 0.78);
+    --code-ln: rgba(255, 255, 255, 0.28);
+    --code-comment: rgba(255, 255, 255, 0.4);
+    --cta-ink-dim: rgba(255, 255, 255, 0.66);
+    --cta-ghost-border: rgba(255, 255, 255, 0.26);
+    --cta-ghost-border-hover: rgba(255, 255, 255, 0.4);
+    --cta-ghost-hover-bg: rgba(255, 255, 255, 0.1);
+    --cta-ring: rgba(255, 111, 99, 0.16);
+    --footer-bg: #0a0b0d;
+    --footer-ink: rgba(255, 255, 255, 0.75);
+    --footer-ink-dim: rgba(255, 255, 255, 0.6);
+    --footer-ink-strong: #ffffff;
+    --footer-link: rgba(255, 255, 255, 0.66);
+    --footer-wordmark: rgba(255, 255, 255, 0.06);
+    --ok-border: rgba(63, 202, 119, 0.35);
+    --danger-border: rgba(255, 107, 107, 0.45);
+    --danger-border-hover: rgba(255, 107, 107, 0.65);
+    --danger-border-soft: rgba(255, 107, 107, 0.35);
+    --danger-border-faint: rgba(255, 107, 107, 0.3);
+    --danger-usage-bg: rgba(255, 107, 107, 0.14);
+    --focus-ring: rgba(243, 244, 246, 0.16);
+    --row-flash: rgba(255, 111, 99, 0.16);
+
+    /* ---- Elevation: deeper, darker shadows for dark surfaces ---- */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -16px rgba(0, 0, 0, 0.7);
+    --shadow-float: 0 2px 6px rgba(0, 0, 0, 0.55), 0 24px 48px -24px rgba(0, 0, 0, 0.8);
+
+    /* ---- Canvas backdrops: light particles on dark ground ---- */
+    --backdrop-particle: 226, 228, 233;
+    --backdrop-link: 226, 228, 233;
+    --backdrop-accent: 255, 111, 99;
+  }
 }
 
 * {
@@ -103,7 +233,7 @@ code,
   top: 0;
   z-index: 50;
   border-bottom: 1px solid var(--rule);
-  background: rgba(255, 255, 255, 0.82);
+  background: var(--header-bg);
   backdrop-filter: blur(16px) saturate(140%);
   -webkit-backdrop-filter: blur(16px) saturate(140%);
 }
@@ -197,7 +327,7 @@ code,
   padding: 0.55rem 0.95rem;
   border-radius: var(--radius-sm);
   background: var(--ink);
-  color: #ffffff;
+  color: var(--on-accent);
   font-size: 0.9rem;
   font-weight: 600;
   box-shadow: var(--shadow-card);
@@ -454,12 +584,12 @@ code,
 .button-primary {
   background: var(--ink);
   border-color: var(--ink);
-  color: #ffffff;
+  color: var(--on-accent);
 }
 
 .button-primary:hover {
-  background: #2a2b31;
-  border-color: #2a2b31;
+  background: var(--button-primary-hover);
+  border-color: var(--button-primary-hover);
   transform: translateY(-1px);
   box-shadow: var(--shadow-card);
 }
@@ -479,7 +609,7 @@ code,
 
 .button-danger {
   background: transparent;
-  border-color: rgba(212, 51, 51, 0.35);
+  border-color: var(--danger-border);
   color: var(--danger);
   padding: 0.35rem 0.8rem;
   font-size: 0.84rem;
@@ -488,7 +618,7 @@ code,
 
 .button-danger:hover {
   background: var(--danger-soft);
-  border-color: rgba(212, 51, 51, 0.55);
+  border-color: var(--danger-border-hover);
 }
 
 .button:disabled {
@@ -652,7 +782,7 @@ code,
 
 .notice-error {
   color: var(--danger);
-  border-color: rgba(212, 51, 51, 0.25);
+  border-color: var(--danger-border-soft);
   background: var(--danger-soft);
 }
 
@@ -669,8 +799,8 @@ code,
   width: 100%;
   border-radius: var(--radius-xl);
   background:
-    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(var(--panel-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--panel-grid) 1px, transparent 1px),
     var(--bg-panel);
   background-size:
     48px 48px,
@@ -691,7 +821,7 @@ code,
   align-items: center;
   justify-content: space-between;
   padding: 0 0.2rem 0.9rem;
-  color: rgba(255, 255, 255, 0.66);
+  color: var(--demo-ink);
   font-size: 0.78rem;
 }
 
@@ -705,7 +835,7 @@ code,
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  color: rgba(255, 255, 255, 0.72);
+  color: var(--demo-ink-strong);
 }
 
 .demo-live i {
@@ -720,7 +850,7 @@ code,
   width: 100%;
   max-width: 34rem;
   border-radius: var(--radius-lg);
-  background: #ffffff;
+  background: var(--card-solid);
   box-shadow: var(--shadow-float);
   overflow: hidden;
   font-size: 0.9rem;
@@ -747,7 +877,7 @@ code,
   font-weight: 600;
   color: var(--ok);
   background: var(--ok-soft);
-  border: 1px solid rgba(26, 158, 80, 0.25);
+  border: 1px solid var(--ok-border);
   padding: 0.15rem 0.5rem;
   border-radius: 999px;
 }
@@ -763,7 +893,7 @@ code,
   font-size: 0.85em;
   padding: 0.05rem 0.3rem;
   border-radius: 5px;
-  background: rgba(23, 24, 28, 0.06);
+  background: var(--code-inline-bg);
   color: var(--ink-dim);
 }
 
@@ -790,12 +920,12 @@ code,
 }
 
 .check-icon-pass {
-  color: #ffffff;
+  color: var(--on-accent);
   background: var(--ok);
 }
 
 .check-icon-fail {
-  color: #ffffff;
+  color: var(--on-accent);
   background: var(--danger);
 }
 
@@ -823,8 +953,8 @@ code,
   margin: 0.3rem 0.75rem 0.75rem;
   padding: 0.85rem 0.9rem;
   border-radius: var(--radius);
-  border: 1px solid rgba(212, 51, 51, 0.18);
-  background: #fffafa;
+  border: 1px solid var(--danger-border-faint);
+  background: var(--check-detail-bg);
 }
 
 .check-detail-head {
@@ -881,7 +1011,7 @@ code,
   font-size: 0.95em;
   padding: 0.05rem 0.35rem;
   border-radius: 5px;
-  background: rgba(212, 51, 51, 0.08);
+  background: var(--danger-usage-bg);
   color: var(--danger);
 }
 
@@ -1073,7 +1203,7 @@ code,
 }
 
 .flow-card-final .step-label {
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--panel-ink-quiet);
 }
 
 .flow-card h3 {
@@ -1091,11 +1221,11 @@ code,
 }
 
 .flow-card-final h3 {
-  color: #ffffff;
+  color: var(--panel-ink);
 }
 
 .flow-card-final p {
-  color: rgba(255, 255, 255, 0.62);
+  color: var(--panel-ink-dim);
 }
 
 .flow-arrow {
@@ -1122,11 +1252,11 @@ code,
   padding: 2.1rem;
   border-radius: var(--radius-xl);
   background: var(--bg-panel);
-  color: #ffffff;
+  color: var(--panel-ink);
 }
 
 .feature-tag {
-  color: rgba(255, 255, 255, 0.52);
+  color: var(--panel-ink-faint);
   font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -1136,7 +1266,7 @@ code,
 .feature-primary h3 {
   margin: 0.9rem 0 0.8rem;
   max-width: 28rem;
-  color: #ffffff;
+  color: var(--panel-ink);
   font-size: 1.7rem;
   line-height: 1.2;
   letter-spacing: -0.03em;
@@ -1145,18 +1275,18 @@ code,
 .feature-primary p {
   margin: 0;
   max-width: 29rem;
-  color: rgba(255, 255, 255, 0.62);
+  color: var(--panel-ink-dim);
   font-size: 0.95rem;
   line-height: 1.6;
 }
 
 .code-sample {
   margin-top: 1.75rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--panel-hairline);
   border-radius: var(--radius);
-  background: #101216;
+  background: var(--code-block-bg);
   padding: 1.05rem 1.1rem;
-  color: rgba(255, 255, 255, 0.72);
+  color: var(--demo-ink-strong);
   font-size: 0.78rem;
   line-height: 1.9;
 }
@@ -1164,15 +1294,15 @@ code,
 .code-sample .ln {
   display: inline-block;
   width: 1.6rem;
-  color: rgba(255, 255, 255, 0.24);
+  color: var(--code-ln);
 }
 
 .code-sample .key {
-  color: #ff8a81;
+  color: var(--code-key);
 }
 
 .code-sample .comment {
-  color: rgba(255, 255, 255, 0.34);
+  color: var(--code-comment);
 }
 
 .feature-stack {
@@ -1252,7 +1382,7 @@ code,
   border-radius: 8px;
   font-size: 0.95rem;
   font-weight: 650;
-  color: #ffffff;
+  color: var(--on-accent);
   background: var(--ink);
   margin-bottom: 1.1rem;
 }
@@ -1418,7 +1548,7 @@ code,
   top: -7rem;
   width: 17.5rem;
   height: 17.5rem;
-  border: 3rem solid rgba(233, 86, 74, 0.13);
+  border: 3rem solid var(--cta-ring);
   border-radius: 40% 40% 46% 46%;
   transform: rotate(12deg);
   pointer-events: none;
@@ -1432,7 +1562,7 @@ code,
 
 .cta-band h2 {
   max-width: 40rem;
-  color: #ffffff;
+  color: var(--panel-ink);
   font-size: clamp(1.6rem, 1.6vw + 1rem, 2.25rem);
   font-weight: 680;
   letter-spacing: -0.03em;
@@ -1441,7 +1571,7 @@ code,
 }
 
 .cta-band p {
-  color: rgba(255, 255, 255, 0.58);
+  color: var(--cta-ink-dim);
   font-size: 0.98rem;
   margin: 0.7rem 0 0;
 }
@@ -1460,22 +1590,22 @@ code,
 /* The secondary CTA on the dark band is a ghost button. */
 .cta-band .button:not(.button-primary) {
   background: transparent;
-  border-color: rgba(255, 255, 255, 0.22);
-  color: #ffffff;
+  border-color: var(--cta-ghost-border);
+  color: var(--panel-ink);
   box-shadow: none;
 }
 
 .cta-band .button:not(.button-primary):hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.35);
+  background: var(--cta-ghost-hover-bg);
+  border-color: var(--cta-ghost-border-hover);
 }
 
 /* ============ Footer ============ */
 
 .site-footer {
   margin-top: 5rem;
-  background: #0f1013;
-  color: rgba(255, 255, 255, 0.72);
+  background: var(--footer-bg);
+  color: var(--footer-ink);
   overflow: hidden;
 }
 
@@ -1488,19 +1618,19 @@ code,
 }
 
 .site-footer .brand {
-  color: #ffffff;
+  color: var(--footer-ink-strong);
 }
 
 .site-footer-note {
   margin: 0.8rem 0 0;
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--footer-ink-dim);
   font-size: 0.92rem;
   max-width: 22rem;
 }
 
 .site-footer-copy {
   margin: 1.6rem 0 0;
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--footer-ink-dim);
   font-size: 0.8rem;
 }
 
@@ -1518,18 +1648,18 @@ code,
 }
 
 .footer-col-title {
-  color: #ffffff;
+  color: var(--footer-ink-strong);
   font-weight: 600;
   margin-bottom: 0.25rem;
 }
 
 .footer-col a {
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--footer-link);
   transition: color 150ms var(--ease-out);
 }
 
 .footer-col a:hover {
-  color: #ffffff;
+  color: var(--footer-ink-strong);
 }
 
 /* The giant clipped wordmark — the LAUNCHKIT footer move. */
@@ -1539,7 +1669,7 @@ code,
   letter-spacing: -0.04em;
   line-height: 0.78;
   text-align: center;
-  color: rgba(255, 255, 255, 0.055);
+  color: var(--footer-wordmark);
   user-select: none;
   pointer-events: none;
   margin-bottom: -0.16em;
@@ -1889,7 +2019,7 @@ input[type='text']:focus-visible,
 select:focus-visible {
   outline: none;
   border-color: var(--ink);
-  box-shadow: 0 0 0 3px rgba(23, 24, 28, 0.08);
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 select:disabled {
@@ -2107,7 +2237,7 @@ input[type='checkbox'] {
 .icon-button:hover {
   background: var(--danger-soft);
   color: var(--danger);
-  border-color: rgba(212, 51, 51, 0.25);
+  border-color: var(--danger-border-soft);
 }
 
 .icon-button:disabled {
@@ -2123,7 +2253,7 @@ input[type='checkbox'] {
   align-items: center;
   margin-top: 0.7rem;
   padding: 0.8rem 0.85rem;
-  border: 1px solid rgba(212, 51, 51, 0.25);
+  border: 1px solid var(--danger-border-soft);
   border-radius: 10px;
   background: var(--danger-soft);
   animation: fade-in 180ms var(--ease-out) both;
@@ -2166,13 +2296,13 @@ input[type='checkbox'] {
 .button-danger-solid {
   background: var(--danger);
   border-color: var(--danger);
-  color: #ffffff;
+  color: var(--on-accent);
   box-shadow: none;
 }
 
 .button-danger-solid:hover {
-  background: #b82b2b;
-  border-color: #b82b2b;
+  background: var(--button-danger-solid-hover);
+  border-color: var(--button-danger-solid-hover);
 }
 
 /* Load-failure recovery notice: message + Retry side by side. */
@@ -2688,7 +2818,7 @@ tbody tr.row-created {
 
 @keyframes row-flash {
   from {
-    background-color: rgba(233, 86, 74, 0.12);
+    background-color: var(--row-flash);
   }
   to {
     background-color: transparent;
