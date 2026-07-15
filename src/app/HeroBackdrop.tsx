@@ -38,9 +38,13 @@ interface Particle {
   spin: number;
 }
 
-// Brand tokens, resolved to rgb triples so we can vary alpha per particle/tier.
-const INK = '23, 24, 28'; // --ink #17181c
-const CORAL = '233, 86, 74'; // --accent #e9564a
+// Particle colors are read from CSS custom properties at setup (and re-read on a
+// color-scheme change), so light/dark are driven entirely by globals.css tokens:
+//   --backdrop-particle / --backdrop-link  (ink-toned circles + connecting lines)
+//   --backdrop-accent                      (coral squares + plus marks)
+// Each is an "r, g, b" triple so we can vary alpha per particle/tier.
+const FALLBACK_INK = '23, 24, 28'; // --ink #17181c
+const FALLBACK_ACCENT = '233, 86, 74'; // --accent #e9564a
 
 // Tuning — chosen for "clearly alive, never confetti".
 // Three depth tiers: far (dim, small, slow) → near (brighter, larger, faster).
@@ -78,11 +82,28 @@ export function HeroBackdrop() {
     if (!ctx) return;
 
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const darkScheme = window.matchMedia('(prefers-color-scheme: dark)');
 
     let width = 0;
     let height = 0;
     let dpr = 1;
     let particles: Particle[] = [];
+
+    // Live colors, read from CSS custom properties and refreshed on scheme change.
+    let inkColor = FALLBACK_INK;
+    let linkColor = FALLBACK_INK;
+    let accentColor = FALLBACK_ACCENT;
+
+    function readColors() {
+      const styles = getComputedStyle(document.documentElement);
+      const read = (name: string, fallback: string) => {
+        const v = styles.getPropertyValue(name).trim();
+        return v || fallback;
+      };
+      inkColor = read('--backdrop-particle', FALLBACK_INK);
+      linkColor = read('--backdrop-link', FALLBACK_INK);
+      accentColor = read('--backdrop-accent', FALLBACK_ACCENT);
+    }
 
     let rafId = 0;
     let running = false;
@@ -135,7 +156,7 @@ export function HeroBackdrop() {
 
     function drawParticle(p: Particle) {
       // Circles ink-toned, squares/plus coral-leaning — a cohesive two-hue field.
-      const color = p.shape === 'circle' ? INK : CORAL;
+      const color = p.shape === 'circle' ? inkColor : accentColor;
       ctx!.save();
       ctx!.translate(p.x, p.y);
       ctx!.rotate(p.angle);
@@ -179,7 +200,7 @@ export function HeroBackdrop() {
           const d2 = dx * dx + dy * dy;
           if (d2 > LINK_DIST * LINK_DIST) continue;
           const t = 1 - Math.sqrt(d2) / LINK_DIST;
-          ctx!.strokeStyle = `rgba(${INK}, ${LINK_ALPHA * t})`;
+          ctx!.strokeStyle = `rgba(${linkColor}, ${LINK_ALPHA * t})`;
           ctx!.lineWidth = 1;
           ctx!.beginPath();
           ctx!.moveTo(a.x, a.y);
@@ -282,6 +303,13 @@ export function HeroBackdrop() {
       }
     }
 
+    // Re-read tokens when the OS color scheme flips; redraw so a paused/static
+    // field (hidden tab, out of view, or reduced-motion) adopts the new colors.
+    function onSchemeChange() {
+      readColors();
+      if (!running) draw();
+    }
+
     // --- Wire up.
     const ro = new ResizeObserver(() => resize());
     ro.observe(canvas);
@@ -300,7 +328,9 @@ export function HeroBackdrop() {
     window.addEventListener('pointerleave', onPointerLeave);
     document.addEventListener('visibilitychange', onVisibility);
     reducedMotion.addEventListener('change', onReducedChange);
+    darkScheme.addEventListener('change', onSchemeChange);
 
+    readColors();
     resize();
     start();
 
@@ -312,6 +342,7 @@ export function HeroBackdrop() {
       window.removeEventListener('pointerleave', onPointerLeave);
       document.removeEventListener('visibilitychange', onVisibility);
       reducedMotion.removeEventListener('change', onReducedChange);
+      darkScheme.removeEventListener('change', onSchemeChange);
     };
   }, []);
 
