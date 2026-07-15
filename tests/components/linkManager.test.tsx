@@ -107,8 +107,6 @@ function selectPair(backendId: number, frontendId: number): void {
   fireEvent.change(frontend, { target: { value: String(frontendId) } });
 }
 
-// TESTS_PLACEHOLDER
-
 describe('LinkManager', () => {
   const originalFetch = globalThis.fetch;
 
