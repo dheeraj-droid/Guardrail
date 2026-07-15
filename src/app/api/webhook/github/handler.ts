@@ -37,26 +37,8 @@ import {
   type PipelineDeps,
 } from '@/lib/pipeline/processPullRequest';
 import { buildDeps } from '@/app/api/webhook/_lib/buildDeps';
+import { checkBodySize } from '@/app/api/_lib/bodySizeGuard';
 import type { PipelineInput, PullRequestWebhookPayload } from '@/types/github';
-
-// Early-rejection guard, NOT a metered stream cap: both GitHub and QStash always send a
-// Content-Length header, so we can reject an oversized (or header-less / malformed) body
-// before reading it. This does not defend against a chunked/streamed body with no length
-// header — it is a cheap first gate on the documented senders. 25 MiB is GitHub's payload
-// ceiling.
-const MAX_BODY_BYTES = 25 * 1024 * 1024;
-
-/**
- * Reject when Content-Length is absent, not a strict non-negative decimal, or exceeds
- * MAX_BODY_BYTES. Returns a 413 Response to send back, or null to proceed.
- */
-function checkBodySize(req: Request): Response | null {
-  const header = req.headers.get('content-length');
-  if (header === null || !/^\d+$/.test(header) || Number(header) > MAX_BODY_BYTES) {
-    return Response.json({ error: 'payload too large' }, { status: 413 });
-  }
-  return null;
-}
 
 /**
  * Module-private — undefined when no queue is configured; never throws (Track N).
@@ -88,7 +70,7 @@ export function makePostHandler(overrides?: {
   const publish = overrides?.publish ?? publishPipelineJob;
 
   return async function POST(req: Request): Promise<Response> {
-    // 0. Body-size guard BEFORE reading the body (Content-Length only; see MAX_BODY_BYTES).
+    // 0. Body-size guard BEFORE reading the body (Content-Length only; see bodySizeGuard).
     const oversize = checkBodySize(req);
     if (oversize) return oversize;
 

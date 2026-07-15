@@ -13,23 +13,7 @@
 // return 503 so a misroute is loud rather than silently 200-ing unverified payloads.
 import { isMarketplaceConfigured, loadMarketplaceEnv, type MarketplaceEnv } from '@/config/env';
 import { verifyGithubSignature } from '@/lib/crypto/verifySignature';
-
-// Early-rejection guard, NOT a metered stream cap: GitHub always sends a Content-Length
-// header, so we can reject an oversized (or header-less / malformed) body before reading
-// it. 25 MiB is GitHub's payload ceiling. Identical to the webhook receiver (T3).
-const MAX_BODY_BYTES = 25 * 1024 * 1024;
-
-/**
- * Reject when Content-Length is absent, not a strict non-negative decimal, or exceeds
- * MAX_BODY_BYTES. Returns a 413 Response to send back, or null to proceed.
- */
-function checkBodySize(req: Request): Response | null {
-  const header = req.headers.get('content-length');
-  if (header === null || !/^\d+$/.test(header) || Number(header) > MAX_BODY_BYTES) {
-    return Response.json({ error: 'payload too large' }, { status: 413 });
-  }
-  return null;
-}
+import { checkBodySize } from '@/app/api/_lib/bodySizeGuard';
 
 /**
  * Module-private — undefined when no marketplace secret is configured; never throws.
@@ -51,7 +35,7 @@ export function makePostHandler(overrides?: {
   marketplaceEnv?: MarketplaceEnv;
 }): (req: Request) => Promise<Response> {
   return async function POST(req: Request): Promise<Response> {
-    // 0. Body-size guard BEFORE reading the body (Content-Length only; see MAX_BODY_BYTES).
+    // 0. Body-size guard BEFORE reading the body (Content-Length only; see bodySizeGuard).
     const oversize = checkBodySize(req);
     if (oversize) return oversize;
 
