@@ -63,7 +63,6 @@
   --danger-border-faint: rgba(212, 51, 51, 0.18);
   --danger-usage-bg: rgba(212, 51, 51, 0.08);
   --focus-ring: rgba(23, 24, 28, 0.08);
-  --row-flash: rgba(233, 86, 74, 0.12);
 
   /* ---- Canvas backdrop particle/link colors (read by HeroBackdrop /
      DashboardBackdrop via getComputedStyle). rgb triples so the canvas can
@@ -158,7 +157,6 @@
     --danger-border-faint: rgba(255, 107, 107, 0.3);
     --danger-usage-bg: rgba(255, 107, 107, 0.14);
     --focus-ring: rgba(243, 244, 246, 0.16);
-    --row-flash: rgba(255, 111, 99, 0.16);
 
     /* ---- Elevation: deeper, darker shadows for dark surfaces ---- */
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
@@ -605,20 +603,6 @@ code,
   padding: 0.8rem 1.5rem;
   font-size: 0.98rem;
   border-radius: var(--radius);
-}
-
-.button-danger {
-  background: transparent;
-  border-color: var(--danger-border);
-  color: var(--danger);
-  padding: 0.35rem 0.8rem;
-  font-size: 0.84rem;
-  box-shadow: none;
-}
-
-.button-danger:hover {
-  background: var(--danger-soft);
-  border-color: var(--danger-border-hover);
 }
 
 .button:disabled {
@@ -1095,10 +1079,6 @@ code,
   border-bottom: 1px solid var(--rule);
 }
 
-.section-rule {
-  border-top: 1px solid var(--rule);
-}
-
 .section-head {
   display: grid;
   grid-template-columns: 1fr 27rem;
@@ -1342,69 +1322,6 @@ code,
   margin: 0;
   color: var(--muted);
   font-size: 0.85rem;
-}
-
-/* ---- Steps (legacy alias kept for reduced-motion selectors) ---- */
-
-.steps {
-  list-style: none;
-  counter-reset: step;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1.25rem;
-}
-
-.step {
-  padding: 1.75rem 1.6rem;
-  border: 1px solid var(--rule);
-  background: var(--bg);
-  border-radius: var(--radius-lg);
-  transition:
-    transform 200ms var(--ease-out),
-    border-color 200ms var(--ease-out),
-    box-shadow 200ms var(--ease-out);
-}
-
-.step:hover {
-  transform: translateY(-2px);
-  border-color: var(--rule-strong);
-  box-shadow: var(--shadow-card);
-}
-
-.step-num {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.1rem;
-  height: 2.1rem;
-  border-radius: 8px;
-  font-size: 0.95rem;
-  font-weight: 650;
-  color: var(--on-accent);
-  background: var(--ink);
-  margin-bottom: 1.1rem;
-}
-
-.step h3 {
-  font-size: 1.08rem;
-  margin: 0 0 0.5rem;
-}
-
-.step p {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.94rem;
-  line-height: 1.6;
-}
-
-/* ---- Feature grid (legacy alias) ---- */
-
-.feature-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1.25rem;
 }
 
 .feature-card {
@@ -1818,86 +1735,6 @@ code,
   border: 1px solid var(--rule);
 }
 
-/* ============ Table ============ */
-
-.table-scroll {
-  overflow-x: auto;
-  margin: 0 -0.4rem;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-variant-numeric: tabular-nums;
-}
-
-th,
-td {
-  text-align: left;
-  padding: 0.7rem 0.85rem;
-  border-bottom: 1px solid var(--rule);
-  font-size: 0.9rem;
-  white-space: nowrap;
-}
-
-th {
-  color: var(--faint);
-  font-weight: 600;
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-tbody tr {
-  transition:
-    background-color 150ms var(--ease-out),
-    box-shadow 150ms var(--ease-out);
-}
-
-/* Hover: soft tint plus a coral edge marker — a subtle lift without moving the
-   row (transforms on <tr> are unreliable across table layouts). */
-tbody tr:hover {
-  background: var(--bg-soft);
-  box-shadow: inset 2px 0 0 var(--accent);
-}
-
-tbody tr:last-child td {
-  border-bottom: none;
-}
-
-.cell-repo {
-  color: var(--ink);
-  font-weight: 500;
-}
-
-.cell-code {
-  font-size: 0.82rem;
-  padding: 0.1rem 0.4rem;
-  border-radius: 6px;
-  background: var(--bg-soft);
-  border: 1px solid var(--rule);
-  color: var(--ink-dim);
-}
-
-.cell-action {
-  text-align: right;
-}
-
-/* Body-cell content lives in an inner block so the delete-exit can collapse
-   max-height/padding on the WRAPPER (never on the <td> or the global th,td rule).
-   Vertical padding moves here from the cell so the collapse removes it too;
-   horizontal padding stays on the <td> to keep columns aligned with the header. */
-.dashboard td {
-  padding-top: 0;
-  padding-bottom: 0;
-}
-
-.cell-inner {
-  display: block;
-  padding-top: 0.7rem;
-  padding-bottom: 0.7rem;
-}
-
 /* ============ Empty / loading states ============ */
 
 .empty-state {
@@ -1928,24 +1765,6 @@ tbody tr:last-child td {
   margin: 0;
   color: var(--muted);
   font-size: 0.92rem;
-}
-
-.loading-row {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  color: var(--muted);
-  font-size: 0.92rem;
-  padding: 1rem 0;
-}
-
-.spinner {
-  width: 1rem;
-  height: 1rem;
-  border-radius: 999px;
-  border: 2px solid var(--rule-strong);
-  border-top-color: var(--ink);
-  animation: spin 620ms linear infinite;
 }
 
 /* ============ Forms ============ */
@@ -2340,12 +2159,6 @@ input[type='checkbox'] {
 
 /* ============ Motion ============ */
 
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 @keyframes rise {
   from {
     opacity: 0;
@@ -2429,11 +2242,6 @@ input[type='checkbox'] {
     grid-template-columns: 1fr;
     gap: 1.75rem;
     padding: 2.5rem 2rem;
-  }
-
-  .steps,
-  .feature-grid {
-    grid-template-columns: 1fr;
   }
 
   .site-footer-inner {
@@ -2561,9 +2369,7 @@ input[type='checkbox'] {
   animation: rise 560ms var(--ease-out) both;
 }
 
-.reveal.is-visible .steps > .step,
 .reveal.is-visible .flow > .flow-card,
-.reveal.is-visible .feature-grid > .feature-card,
 .reveal.is-visible .features-layout > .feature-primary,
 .reveal.is-visible .feature-stack > .feature-card,
 .reveal.is-visible .feature-stack > .privacy-strip,
@@ -2572,25 +2378,18 @@ input[type='checkbox'] {
 }
 
 /* Card stagger — ~70ms between siblings, offset behind the section-head. */
-.reveal.is-visible .steps > .step:nth-child(1),
 .reveal.is-visible .flow > .flow-card:nth-child(1),
-.reveal.is-visible .feature-grid > .feature-card:nth-child(1),
 .reveal.is-visible .faq-list > .faq-item:nth-child(1) {
   animation-delay: 120ms;
 }
-.reveal.is-visible .steps > .step:nth-child(2),
 .reveal.is-visible .flow > .flow-card:nth-child(3),
-.reveal.is-visible .feature-grid > .feature-card:nth-child(2),
 .reveal.is-visible .faq-list > .faq-item:nth-child(2) {
   animation-delay: 190ms;
 }
-.reveal.is-visible .steps > .step:nth-child(3),
 .reveal.is-visible .flow > .flow-card:nth-child(5),
-.reveal.is-visible .feature-grid > .feature-card:nth-child(3),
 .reveal.is-visible .faq-list > .faq-item:nth-child(3) {
   animation-delay: 260ms;
 }
-.reveal.is-visible .feature-grid > .feature-card:nth-child(4),
 .reveal.is-visible .faq-list > .faq-item:nth-child(4) {
   animation-delay: 330ms;
 }
@@ -2693,52 +2492,9 @@ input[type='checkbox'] {
 }
 
 /* Skeleton → content swap reads as a crossfade: the skeleton unmounts while the
-   real content fades + rises in, rather than popping. */
-.dashboard .table-scroll,
+   real content fades in, rather than popping. */
 .dashboard .empty-state {
   animation: fade-in 420ms var(--ease-out) both;
-}
-
-/* Table rows rise in sequence when the list mounts. */
-.dashboard tbody tr {
-  animation: rise 440ms var(--ease-out) both;
-}
-.dashboard tbody tr:nth-child(1) {
-  animation-delay: 40ms;
-}
-.dashboard tbody tr:nth-child(2) {
-  animation-delay: 95ms;
-}
-.dashboard tbody tr:nth-child(3) {
-  animation-delay: 150ms;
-}
-.dashboard tbody tr:nth-child(4) {
-  animation-delay: 205ms;
-}
-.dashboard tbody tr:nth-child(5) {
-  animation-delay: 260ms;
-}
-.dashboard tbody tr:nth-child(n + 6) {
-  animation-delay: 315ms;
-}
-
-/* One-shot highlight on a freshly created link row — keeps the entrance rise in
-   the same shorthand so the new row still rises AND flashes. */
-tbody tr.row-created {
-  animation:
-    rise 440ms var(--ease-out) both,
-    row-flash 1.2s var(--ease-out) both;
-}
-
-/* Delete exit: fade + collapse the inner wrapper before the row leaves state.
-   Only max-height/padding/opacity on .cell-inner animate (the sanctioned layout
-   exception); the <td> and global th,td rule are untouched. */
-.dashboard tbody tr.row-deleting .cell-inner {
-  overflow: hidden;
-  animation: row-collapse 300ms var(--ease-out) forwards;
-}
-.dashboard tbody tr.row-deleting td {
-  border-bottom-color: transparent;
 }
 
 /* Count badge pops whenever the number changes (React remounts it via key). */
@@ -2816,38 +2572,12 @@ tbody tr.row-created {
   }
 }
 
-@keyframes row-flash {
-  from {
-    background-color: var(--row-flash);
-  }
-  to {
-    background-color: transparent;
-  }
-}
-
 @keyframes fade-in {
   from {
     opacity: 0;
   }
   to {
     opacity: 1;
-  }
-}
-
-/* Collapse the row's inner wrapper on delete — starts near the real row height
-   (~2.4rem body + 1.4rem padding) so the collapse reads immediately. */
-@keyframes row-collapse {
-  from {
-    max-height: 3.4rem;
-    opacity: 1;
-    padding-top: 0.7rem;
-    padding-bottom: 0.7rem;
-  }
-  to {
-    max-height: 0;
-    opacity: 0;
-    padding-top: 0;
-    padding-bottom: 0;
   }
 }
 
@@ -2888,9 +2618,7 @@ tbody tr.row-created {
    keep decorative pre-states (the h2 underline) from being stuck hidden. */
 @media (prefers-reduced-motion: reduce) {
   .reveal.is-visible .section-head,
-  .reveal.is-visible .steps > .step,
   .reveal.is-visible .flow > .flow-card,
-  .reveal.is-visible .feature-grid > .feature-card,
   .reveal.is-visible .features-layout > .feature-primary,
   .reveal.is-visible .feature-stack > .feature-card,
   .reveal.is-visible .feature-stack > .privacy-strip,
@@ -2900,27 +2628,13 @@ tbody tr.row-created {
   .product-panel-wrap.is-playing .check-icon,
   .product-panel-wrap.is-playing .check-detail,
   .product-panel-wrap.is-playing .check-blocked,
-  tbody tr.row-created,
   .skeleton-row,
   .dashboard > .dashboard-topbar,
   .dashboard > .card,
-  .dashboard .table-scroll,
   .dashboard .empty-state,
-  .dashboard tbody tr,
   .dashboard-intro .section-kicker-live::before,
   .count-badge {
     animation: none !important;
-  }
-
-  /* The delete-exit still needs to happen; the JS timeout fires regardless. Snap
-     the wrapper closed instantly so there is no lingering half-open row. */
-  .dashboard tbody tr.row-deleting .cell-inner {
-    animation: none !important;
-    max-height: 0;
-    padding-top: 0;
-    padding-bottom: 0;
-    opacity: 0;
-    overflow: hidden;
   }
 
   .h2-accent::after {
