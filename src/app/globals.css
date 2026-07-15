@@ -2694,51 +2694,49 @@ input[type='checkbox'] {
 
 /* Skeleton → content swap reads as a crossfade: the skeleton unmounts while the
    real content fades + rises in, rather than popping. */
-.dashboard .table-scroll,
+.dashboard .link-groups,
 .dashboard .empty-state {
   animation: fade-in 420ms var(--ease-out) both;
 }
 
-/* Table rows rise in sequence when the list mounts. */
-.dashboard tbody tr {
+/* Frontend rows rise in sequence when the list mounts. */
+.dashboard .frontend-row {
   animation: rise 440ms var(--ease-out) both;
 }
-.dashboard tbody tr:nth-child(1) {
+.dashboard .frontend-row:nth-child(1) {
   animation-delay: 40ms;
 }
-.dashboard tbody tr:nth-child(2) {
+.dashboard .frontend-row:nth-child(2) {
   animation-delay: 95ms;
 }
-.dashboard tbody tr:nth-child(3) {
+.dashboard .frontend-row:nth-child(3) {
   animation-delay: 150ms;
 }
-.dashboard tbody tr:nth-child(4) {
+.dashboard .frontend-row:nth-child(4) {
   animation-delay: 205ms;
 }
-.dashboard tbody tr:nth-child(5) {
+.dashboard .frontend-row:nth-child(5) {
   animation-delay: 260ms;
 }
-.dashboard tbody tr:nth-child(n + 6) {
+.dashboard .frontend-row:nth-child(n + 6) {
   animation-delay: 315ms;
 }
 
 /* One-shot highlight on a freshly created link row — keeps the entrance rise in
    the same shorthand so the new row still rises AND flashes. */
-tbody tr.row-created {
+.frontend-row.row-created {
   animation:
     rise 440ms var(--ease-out) both,
     row-flash 1.2s var(--ease-out) both;
 }
 
-/* Delete exit: fade + collapse the inner wrapper before the row leaves state.
-   Only max-height/padding/opacity on .cell-inner animate (the sanctioned layout
-   exception); the <td> and global th,td rule are untouched. */
-.dashboard tbody tr.row-deleting .cell-inner {
+/* Delete exit: fade + collapse the row itself before it leaves state. The
+   grouped layout has no inner wrapper, so max-height/padding/margin/opacity
+   animate on the .frontend-row <div> directly. */
+.dashboard .frontend-row.row-deleting {
   overflow: hidden;
+  border-color: transparent;
   animation: row-collapse 300ms var(--ease-out) forwards;
-}
-.dashboard tbody tr.row-deleting td {
-  border-bottom-color: transparent;
 }
 
 /* Count badge pops whenever the number changes (React remounts it via key). */
@@ -2834,20 +2832,26 @@ tbody tr.row-created {
   }
 }
 
-/* Collapse the row's inner wrapper on delete — starts near the real row height
-   (~2.4rem body + 1.4rem padding) so the collapse reads immediately. */
+/* Collapse the row on delete — starts near the real row height so the collapse
+   reads immediately, then shrinks height, padding and border away. Also pulls in
+   the surrounding .frontend-list grid gap via a negative-trending margin so the
+   neighbours close up smoothly. */
 @keyframes row-collapse {
   from {
-    max-height: 3.4rem;
+    max-height: 5rem;
     opacity: 1;
-    padding-top: 0.7rem;
-    padding-bottom: 0.7rem;
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+    border-width: 1px;
+    margin-bottom: 0;
   }
   to {
     max-height: 0;
     opacity: 0;
     padding-top: 0;
     padding-bottom: 0;
+    border-width: 0;
+    margin-bottom: -0.5rem;
   }
 }
 
@@ -2901,24 +2905,26 @@ tbody tr.row-created {
   .product-panel-wrap.is-playing .check-detail,
   .product-panel-wrap.is-playing .check-blocked,
   tbody tr.row-created,
+  .frontend-row.row-created,
   .skeleton-row,
   .dashboard > .dashboard-topbar,
   .dashboard > .card,
-  .dashboard .table-scroll,
+  .dashboard .link-groups,
   .dashboard .empty-state,
-  .dashboard tbody tr,
+  .dashboard .frontend-row,
   .dashboard-intro .section-kicker-live::before,
   .count-badge {
     animation: none !important;
   }
 
   /* The delete-exit still needs to happen; the JS timeout fires regardless. Snap
-     the wrapper closed instantly so there is no lingering half-open row. */
-  .dashboard tbody tr.row-deleting .cell-inner {
+     the row closed instantly so there is no lingering half-open row. */
+  .dashboard .frontend-row.row-deleting {
     animation: none !important;
     max-height: 0;
     padding-top: 0;
     padding-bottom: 0;
+    border-width: 0;
     opacity: 0;
     overflow: hidden;
   }

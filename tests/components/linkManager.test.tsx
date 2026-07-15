@@ -293,4 +293,73 @@ describe('LinkManager', () => {
       expect(c.headers[CSRF_HEADER]).toBe('dashboard');
     }
   });
+
+  it('(h) an outside click cancels the confirm and restores focus to the Delete trigger', async () => {
+    installFetch({ repos: REPOS, links: [link('l1', 10, 20)], failRepos: false });
+    render(<LinkManager login="octocat" appSlug="guardrail-app" />);
+
+    const trigger = await screen.findByRole('button', {
+      name: 'Delete link to acme/web-store',
+    });
+    fireEvent.click(trigger);
+    await screen.findByRole('button', { name: 'Confirm' });
+
+    // A pointer press outside the confirm panel dismisses it.
+    fireEvent.pointerDown(document.body);
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Confirm' })).toBeNull());
+
+    // Focus is returned to the (re-mounted) Delete trigger.
+    const restored = screen.getByRole('button', { name: 'Delete link to acme/web-store' });
+    await waitFor(() => expect(document.activeElement).toBe(restored));
+  });
+
+  it('(i) Escape and Cancel also restore focus to the Delete trigger', async () => {
+    installFetch({ repos: REPOS, links: [link('l1', 10, 20)], failRepos: false });
+    render(<LinkManager login="octocat" appSlug="guardrail-app" />);
+
+    await screen.findByRole('button', { name: 'Delete link to acme/web-store' });
+
+    // Escape restores focus.
+    fireEvent.click(screen.getByRole('button', { name: 'Delete link to acme/web-store' }));
+    await screen.findByRole('button', { name: 'Confirm' });
+    fireEvent.keyDown(document, { key: 'Escape' });
+    await waitFor(() =>
+      expect(
+        document.activeElement,
+      ).toBe(screen.getByRole('button', { name: 'Delete link to acme/web-store' })),
+    );
+
+    // Cancel restores focus.
+    fireEvent.click(screen.getByRole('button', { name: 'Delete link to acme/web-store' }));
+    await screen.findByRole('button', { name: 'Confirm' });
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    await waitFor(() =>
+      expect(
+        document.activeElement,
+      ).toBe(screen.getByRole('button', { name: 'Delete link to acme/web-store' })),
+    );
+  });
+
+  it('(j) Confirm marks the row with the row-deleting exit class before the DELETE fires', async () => {
+    const state: FetchState = { repos: REPOS, links: [link('l1', 10, 20)], failRepos: false };
+    installFetch(state);
+    render(<LinkManager login="octocat" appSlug="guardrail-app" />);
+
+    await screen.findByRole('button', { name: 'Delete link to acme/web-store' });
+    fireEvent.click(screen.getByRole('button', { name: 'Delete link to acme/web-store' }));
+    const confirmBtn = await screen.findByRole('button', { name: 'Confirm' });
+
+    const row = document.querySelector('[data-component-id="link-10:20"]');
+    expect(row).not.toBeNull();
+    expect(row!.classList.contains('row-deleting')).toBe(false);
+
+    state.links = [];
+    fireEvent.click(confirmBtn);
+
+    // The row gets the exit-animation class immediately, before the delayed DELETE.
+    await waitFor(() => {
+      const r = document.querySelector('[data-component-id="link-10:20"]');
+      expect(r?.classList.contains('row-deleting')).toBe(true);
+    });
+  });
 });
