@@ -36,8 +36,26 @@ export function ProductPanel() {
   }, []);
 
   return (
-    <div className="product-panel-wrap" aria-hidden="true" ref={ref}>
+    <>
+      <div className="product-panel-wrap" aria-hidden="true" ref={ref}>
       <div className="product-panel">
+        <div className="demo-bar">
+          <span className="demo-repo">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M7 3v12m0-8a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm10 14v-8m0 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM7 12h6a4 4 0 0 0 4-4"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+              />
+            </svg>
+            acme/api · pull request #482
+          </span>
+          <span className="demo-live">
+            <i />
+            check complete
+          </span>
+        </div>
         <div className="check-card">
           <div className="check-card-header">
             <div className="check-card-pr">
@@ -111,6 +129,11 @@ export function ProductPanel() {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+      <p className="sr-only">
+        Example: a pull request removing User.phoneNumber fails the Guardrail contract
+        check with two breaking frontend usages, blocking the merge.
+      </p>
+    </>
   );
 }

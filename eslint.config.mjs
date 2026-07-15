@@ -10,7 +10,7 @@ const eslintConfig = [
     // tests/fixtures/** is deliberately-crafted sample frontend source consumed by the
     // AST scanner (Law 7: syntactic scanning via ts.SyntaxKind, type-agnostic) — it's
     // fixture data, not maintained application code, so it isn't linted.
-    ignores: [".claude/**", "tests/fixtures/**"],
+    ignores: [".claude/**", "tests/fixtures/**", "coverage/**"],
   },
   ...nextCoreWebVitals,
   ...nextTypescript,
@@ -23,6 +23,8 @@ const eslintConfig = [
         "warn",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
       ],
+      "@typescript-eslint/consistent-type-imports": "error",
+      "@typescript-eslint/no-explicit-any": "warn",
     },
   },
 ];

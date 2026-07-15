@@ -2,7 +2,10 @@
 import { randomBytes } from 'node:crypto';
 import type { Octokit } from 'octokit';
 
-export const STATE_COOKIE = 'guardrail_oauth_state';
+// The `__Host-` prefix is a browser-enforced hardening (T5): the cookie is only accepted
+// when set with Secure, Path=/, and NO Domain attribute — every Set-Cookie string for this
+// name already qualifies.
+export const STATE_COOKIE = '__Host-guardrail_oauth_state';
 
 const AUTHORIZE_URL = 'https://github.com/login/oauth/authorize';
 const TOKEN_URL = 'https://github.com/login/oauth/access_token';

@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type * as EnvModule from '@/config/env';
+import type * as OauthModule from '@/lib/auth/oauth';
 
 // These routes call `loadDashboardEnv()` directly (not `buildDashboardDeps()`), so the env
 // module is partially mocked here: `loadDashboardEnv` is a mock, everything else (including
@@ -13,12 +15,12 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/config/env', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/config/env')>();
+  const actual = await importOriginal<typeof EnvModule>();
   return { ...actual, loadDashboardEnv: mocks.loadDashboardEnv };
 });
 
 vi.mock('@/lib/auth/oauth', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/lib/auth/oauth')>();
+  const actual = await importOriginal<typeof OauthModule>();
   return { ...actual, exchangeCodeForToken: mocks.exchangeCodeForToken, fetchViewer: mocks.fetchViewer };
 });
 
@@ -64,6 +66,37 @@ function callbackRequest(opts: { code?: string; state?: string; stateCookie?: st
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.loadDashboardEnv.mockReturnValue(FAKE_ENV);
+});
+
+describe('cookie name hardening (T5)', () => {
+  it('CK1. session and state cookies use the browser-enforced __Host- prefix', () => {
+    // The `__Host-` prefix is only honored when the cookie is Secure, Path=/, and has no
+    // Domain — every Set-Cookie string in these routes already qualifies.
+    expect(SESSION_COOKIE).toBe('__Host-guardrail_session');
+    expect(STATE_COOKIE).toBe('__Host-guardrail_oauth_state');
+  });
+
+  it('CK2. login state cookie and callback session cookie carry the __Host- name + Secure/Path=/ (no Domain)', async () => {
+    const loginRes = await loginGET();
+    const stateCookie = findSetCookie(loginRes, STATE_COOKIE);
+    expect(stateCookie).toBeTruthy();
+    expect(stateCookie!.startsWith('__Host-')).toBe(true);
+    expect(stateCookie).toContain('Secure');
+    expect(stateCookie).toContain('Path=/');
+    expect(stateCookie).not.toContain('Domain=');
+
+    mocks.exchangeCodeForToken.mockResolvedValue('gh-user-token-xyz');
+    mocks.fetchViewer.mockResolvedValue({ login: 'octocat', id: 583231 });
+    const cbRes = await callbackGET(
+      callbackRequest({ code: 'good-code', state: 'matching-state', stateCookie: 'matching-state' }),
+    );
+    const sessionCookie = findSetCookie(cbRes, SESSION_COOKIE);
+    expect(sessionCookie).toBeTruthy();
+    expect(sessionCookie!.startsWith('__Host-')).toBe(true);
+    expect(sessionCookie).toContain('Secure');
+    expect(sessionCookie).toContain('Path=/');
+    expect(sessionCookie).not.toContain('Domain=');
+  });
 });
 
 describe('GET /api/auth/login', () => {
@@ -141,6 +174,21 @@ describe('GET /api/auth/callback', () => {
   it('C3. state param does not equal cookie state -> 403 + state cookie cleared', async () => {
     const res = await callbackGET(
       callbackRequest({ code: 'irrelevant', state: 'param-state', stateCookie: 'different-cookie-state' }),
+    );
+
+    expect(res.status).toBe(403);
+    const cookie = findSetCookie(res, STATE_COOKIE);
+    expect(cookie).toBeTruthy();
+    expect(cookieValue(cookie!)).toBe('');
+    expect(cookie).toContain('Max-Age=0');
+    expect(mocks.exchangeCodeForToken).not.toHaveBeenCalled();
+  });
+
+  it('C3b. EQUAL-LENGTH state mismatch -> 403 (constant-time compare rejects, does not throw)', async () => {
+    // Same byte length, different value: exercises the timingSafeEqual path in safeEqual
+    // (a length-guard-only compare would wrongly pass equal-length values).
+    const res = await callbackGET(
+      callbackRequest({ code: 'irrelevant', state: 'aaaaaaaa', stateCookie: 'bbbbbbbb' }),
     );
 
     expect(res.status).toBe(403);

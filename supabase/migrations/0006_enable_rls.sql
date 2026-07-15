@@ -1,0 +1,16 @@
+-- Enable Row Level Security on project_links with a DELIBERATE zero-policy (deny-all)
+-- posture. This is intentional, not an oversight:
+--
+--   * Once RLS is enabled, Postgres denies ALL access to the `anon` and `authenticated`
+--     roles unless a policy explicitly grants it. We add NO policies, so those two roles
+--     (i.e. any request authenticated with the Supabase anon or user JWT) can neither read
+--     nor write project_links — the table is never meant to be reachable from a browser or
+--     any client-side key.
+--   * Guardrail touches project_links ONLY through the service-role client
+--     (SUPABASE_SERVICE_ROLE_KEY, constructed in src/lib/db/supabase.ts). The service role
+--     BYPASSES RLS entirely, so application behavior is unchanged — the webhook pipeline
+--     and the dashboard link CRUD keep working exactly as before.
+--
+-- Net effect: defense-in-depth. If the anon key ever leaks or a client is misconfigured to
+-- query this table directly, RLS denies it by default rather than exposing link rows.
+ALTER TABLE project_links ENABLE ROW LEVEL SECURITY;

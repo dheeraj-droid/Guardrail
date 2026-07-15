@@ -78,9 +78,15 @@ function samplePipelineInput(): PipelineInput {
   };
 }
 
-function makeRequest(opts: { body: string; signature?: string | null }): Request {
+function makeRequest(opts: { body: string; signature?: string | null; contentLength?: string | null }): Request {
   const headers = new Headers();
   headers.set('content-type', 'application/json');
+  // Node's Request does not auto-populate Content-Length from a string body, and the
+  // handler now requires it (T3 body-size guard). Default to the real byte length; a test
+  // can override (or pass null to omit it) to exercise the guard.
+  if (opts.contentLength !== null) {
+    headers.set('content-length', opts.contentLength ?? String(Buffer.byteLength(opts.body)));
+  }
   if (opts.signature !== null) {
     headers.set('upstash-signature', opts.signature ?? sign(opts.body));
   }
@@ -158,6 +164,63 @@ describe('POST /api/webhook/process', () => {
     const res = await handler(req);
 
     expect(res.status).toBeGreaterThanOrEqual(300);
+    expect(pipelineSpy).toHaveBeenCalledTimes(1);
+  });
+
+  // --- T3 (body-size cap) — reject on Content-Length before reading body / verifying ---
+
+  it('T3a. oversized Content-Length -> 413; pipeline not called', async () => {
+    const pipelineSpy = vi.fn(async () => {});
+    const handler = makePostHandler({ deps: fakeDeps(), pipeline: pipelineSpy, queueEnv: fakeQueueEnv() });
+
+    const body = JSON.stringify(samplePipelineInput());
+    const req = makeRequest({ body, contentLength: '999999999999' });
+
+    const res = await handler(req);
+
+    expect(res.status).toBe(413);
+    await expect(res.json()).resolves.toEqual({ error: 'payload too large' });
+    expect(pipelineSpy).not.toHaveBeenCalled();
+  });
+
+  it('T3b. missing Content-Length -> 413', async () => {
+    const pipelineSpy = vi.fn(async () => {});
+    const handler = makePostHandler({ deps: fakeDeps(), pipeline: pipelineSpy, queueEnv: fakeQueueEnv() });
+
+    const body = JSON.stringify(samplePipelineInput());
+    const req = makeRequest({ body, contentLength: null });
+
+    const res = await handler(req);
+
+    expect(res.status).toBe(413);
+    expect(pipelineSpy).not.toHaveBeenCalled();
+  });
+
+  it('T3c. malformed Content-Length (12x, -1) -> 413', async () => {
+    const pipelineSpy = vi.fn(async () => {});
+    const handler = makePostHandler({ deps: fakeDeps(), pipeline: pipelineSpy, queueEnv: fakeQueueEnv() });
+
+    const body = JSON.stringify(samplePipelineInput());
+
+    const resAlpha = await handler(makeRequest({ body, contentLength: '12x' }));
+    expect(resAlpha.status).toBe(413);
+
+    const resNeg = await handler(makeRequest({ body, contentLength: '-1' }));
+    expect(resNeg.status).toBe(413);
+
+    expect(pipelineSpy).not.toHaveBeenCalled();
+  });
+
+  it('T3d. normal signed request (correct Content-Length) still 200', async () => {
+    const pipelineSpy = vi.fn(async () => {});
+    const handler = makePostHandler({ deps: fakeDeps(), pipeline: pipelineSpy, queueEnv: fakeQueueEnv() });
+
+    const body = JSON.stringify(samplePipelineInput());
+    const req = makeRequest({ body });
+
+    const res = await handler(req);
+
+    expect(res.status).toBe(200);
     expect(pipelineSpy).toHaveBeenCalledTimes(1);
   });
 });

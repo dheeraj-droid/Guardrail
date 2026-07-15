@@ -29,7 +29,13 @@ export async function listLinksForRepoIds(
   return (data ?? []) as ProjectLinkRow[];
 }
 
-/** Create or update the link row for `row.backend_repo_id` (the UNIQUE column). */
+/**
+ * Create or update the link row for the (backend_repo_id, frontend_repo_id) PAIR — the
+ * composite UNIQUE key since migration 0005 dropped the single-column backend uniqueness
+ * and added `UNIQUE (backend_repo_id, frontend_repo_id)`. A backend repo may link to many
+ * frontend repos, so the conflict target must be BOTH columns; targeting only
+ * `backend_repo_id` (the pre-0005 constraint, now gone) 500s on a migrated DB.
+ */
 export async function upsertProjectLink(
   db: SupabaseClient,
   row: {
@@ -43,15 +49,31 @@ export async function upsertProjectLink(
 ): Promise<void> {
   const { error } = await db
     .from('project_links')
-    .upsert({ ...row, updated_at: new Date().toISOString() }, { onConflict: 'backend_repo_id' });
+    .upsert(
+      { ...row, updated_at: new Date().toISOString() },
+      { onConflict: 'backend_repo_id,frontend_repo_id' },
+    );
 
   if (error) {
     throw new Error('project_links upsert failed: ' + error.message);
   }
 }
 
-export async function deleteProjectLink(db: SupabaseClient, backendRepoId: number): Promise<void> {
-  const { error } = await db.from('project_links').delete().eq('backend_repo_id', backendRepoId);
+/**
+ * Delete exactly ONE link — the (backend_repo_id, frontend_repo_id) pair. This matches the
+ * multi-frontend data model (migration 0005): a backend repo may have many frontend links,
+ * so deletion is pair-level and must NOT remove the backend's other frontend links.
+ */
+export async function deleteProjectLink(
+  db: SupabaseClient,
+  backendRepoId: number,
+  frontendRepoId: number,
+): Promise<void> {
+  const { error } = await db
+    .from('project_links')
+    .delete()
+    .eq('backend_repo_id', backendRepoId)
+    .eq('frontend_repo_id', frontendRepoId);
 
   if (error) {
     throw new Error('project_links delete failed: ' + error.message);

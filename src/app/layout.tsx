@@ -1,10 +1,12 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
 import { Inter, JetBrains_Mono } from 'next/font/google';
 import Link from 'next/link';
 import './globals.css';
+import { loadDashboardEnv } from '@/config/env';
 import { resolveSessionState } from './sessionState';
 import { SignOutButton } from './SignOutButton';
+import { MobileNav } from './MobileNav';
 
 // Header reflects the current request's auth state, so the layout must render per-request.
 export const dynamic = 'force-dynamic';
@@ -51,10 +53,46 @@ function BrandMark() {
   );
 }
 
+const APP_TITLE = 'Guardrail — Stop breaking API changes before they merge';
+const APP_DESCRIPTION =
+  'Guardrail intercepts backend pull requests that change an OpenAPI contract, scans your linked frontend for code that would break, and blocks the merge before it ships.';
+
+/**
+ * Resolve the public base URL for metadata. Mirrors the defensive pattern in
+ * `sessionState.ts`: `loadDashboardEnv()` throws when dashboard env vars are unset
+ * (webhook-only deploys), so any throw falls back to localhost.
+ */
+function metadataBaseUrl(): URL {
+  try {
+    return new URL(loadDashboardEnv().baseUrl);
+  } catch {
+    return new URL('http://localhost:3000');
+  }
+}
+
 export const metadata: Metadata = {
-  title: 'Guardrail — Stop breaking API changes before they merge',
-  description:
-    'Guardrail intercepts backend pull requests that change an OpenAPI contract, scans your linked frontend for code that would break, and blocks the merge before it ships.',
+  metadataBase: metadataBaseUrl(),
+  title: APP_TITLE,
+  description: APP_DESCRIPTION,
+  openGraph: {
+    title: APP_TITLE,
+    description: APP_DESCRIPTION,
+    siteName: 'Guardrail',
+    type: 'website',
+    url: '/',
+  },
+  twitter: {
+    card: 'summary',
+    title: APP_TITLE,
+    description: APP_DESCRIPTION,
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)', color: '#0f1013' },
+  ],
 };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
@@ -63,6 +101,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   return (
     <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
       <body>
+        <a className="skip-link" href="#main">
+          Skip to content
+        </a>
         <header className="site-header">
           <div className="container site-header-inner">
             <Link href="/" className="brand">
@@ -103,9 +144,10 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                 )
               )}
             </nav>
+            <MobileNav configured={configured} login={login} />
           </div>
         </header>
-        <main>{children}</main>
+        <main id="main">{children}</main>
         <footer className="site-footer">
           <div className="container site-footer-inner">
             <div>

@@ -1,5 +1,5 @@
 :root {
-  color-scheme: light;
+  color-scheme: light dark;
 
   /* ---- Surfaces ---- */
   --bg: #ffffff;
@@ -8,7 +8,9 @@
   --ink: #17181c;
   --ink-dim: #43454d;
   --muted: #6e7076;
-  --faint: #9a9ca3;
+  /* Darkened from #9a9ca3 to clear WCAG AA (≥4.5:1) on white for the small text
+     that uses it (table headers, form hints, placeholders, loc labels). */
+  --faint: #7a7c83;
 
   --rule: #e9e9e7;
   --rule-strong: #d9d9d6;
@@ -21,6 +23,54 @@
   --ok-soft: #e8f6ee;
   --danger: #d43333;
   --danger-soft: #fdf0ef;
+
+  /* ---- Tokens for hard-coded colors that must flip in dark mode. Light
+     values below are the EXACT current colors, so light mode is unchanged. ---- */
+  --on-accent: #ffffff; /* text/icon on top of --ink or --accent fills */
+  --button-primary-hover: #2a2b31;
+  --button-danger-solid-hover: #b82b2b;
+  --header-bg: rgba(255, 255, 255, 0.82); /* translucent sticky header */
+  --card-solid: #ffffff; /* the product-panel check-card, always a light card */
+  --check-detail-bg: #fffafa;
+  --code-inline-bg: rgba(23, 24, 28, 0.06);
+  --code-block-bg: #101216; /* dark code sample inside the slate feature */
+  --code-key: #ff8a81;
+  --panel-grid: rgba(255, 255, 255, 0.035); /* grid texture on the slate panel */
+  --panel-ink: #ffffff; /* headings/text laid on the dark slate panel */
+  --panel-ink-dim: rgba(255, 255, 255, 0.62); /* body copy on the slate panel */
+  --panel-ink-faint: rgba(255, 255, 255, 0.52); /* tags/labels on the slate panel */
+  --panel-ink-quiet: rgba(255, 255, 255, 0.5); /* step labels on the slate panel */
+  --panel-hairline: rgba(255, 255, 255, 0.1);
+  --demo-ink: rgba(255, 255, 255, 0.66);
+  --demo-ink-strong: rgba(255, 255, 255, 0.72);
+  --code-ln: rgba(255, 255, 255, 0.24);
+  --code-comment: rgba(255, 255, 255, 0.34);
+  --cta-ink-dim: rgba(255, 255, 255, 0.58);
+  --cta-ghost-border: rgba(255, 255, 255, 0.22);
+  --cta-ghost-border-hover: rgba(255, 255, 255, 0.35);
+  --cta-ghost-hover-bg: rgba(255, 255, 255, 0.08);
+  --cta-ring: rgba(233, 86, 74, 0.13);
+  --footer-bg: #0f1013;
+  --footer-ink: rgba(255, 255, 255, 0.72);
+  --footer-ink-dim: rgba(255, 255, 255, 0.55);
+  --footer-ink-strong: #ffffff;
+  --footer-link: rgba(255, 255, 255, 0.6);
+  --footer-wordmark: rgba(255, 255, 255, 0.055);
+  --ok-border: rgba(26, 158, 80, 0.25);
+  --danger-border: rgba(212, 51, 51, 0.35);
+  --danger-border-hover: rgba(212, 51, 51, 0.55);
+  --danger-border-soft: rgba(212, 51, 51, 0.25);
+  --danger-border-faint: rgba(212, 51, 51, 0.18);
+  --danger-usage-bg: rgba(212, 51, 51, 0.08);
+  --focus-ring: rgba(23, 24, 28, 0.08);
+  --row-flash: rgba(233, 86, 74, 0.12);
+
+  /* ---- Canvas backdrop particle/link colors (read by HeroBackdrop /
+     DashboardBackdrop via getComputedStyle). rgb triples so the canvas can
+     vary alpha per particle/tier. ---- */
+  --backdrop-particle: 23, 24, 28; /* --ink #17181c, used for circles + links */
+  --backdrop-link: 23, 24, 28;
+  --backdrop-accent: 233, 86, 74; /* --accent #e9564a, used for squares + plus */
 
   /* ---- Radii ---- */
   --radius-sm: 8px;
@@ -38,6 +88,88 @@
   --shadow-float: 0 2px 6px rgba(10, 12, 20, 0.24), 0 24px 48px -24px rgba(10, 12, 20, 0.45);
 
   --maxw: 1120px;
+}
+
+/* ============ Dark mode (prefers-color-scheme) ============
+   Every override lives here; the :root light values above are untouched, so
+   light mode renders pixel-identically. Surfaces move to a deep near-black slate
+   consistent with the footer (#0f1013); ink flips light; borders/shadows are
+   retuned for dark; the coral accent is lifted slightly for contrast on dark
+   backgrounds. Panels/footer that were ALREADY dark in light mode keep their
+   look — their tokens resolve to near-identical dark values. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* ---- Surfaces ---- */
+    --bg: #0f1013;
+    --bg-soft: #17191f;
+    --bg-panel: #1c1f27;
+    --ink: #f3f4f6;
+    --ink-dim: #c4c6cd;
+    --muted: #9ea1aa;
+    --faint: #babcc4; /* small text — lifted for AA (≥4.5:1) on the dark surfaces */
+
+    --rule: #2a2c34;
+    --rule-strong: #3a3d47;
+
+    /* Coral lifted for legibility/contrast on dark backgrounds. */
+    --accent: #ff6f63;
+    --accent-deep: #ff8a80;
+
+    --ok: #3fca77;
+    --ok-soft: #12261a;
+    --danger: #ff6b6b;
+    --danger-soft: #2a1516;
+
+    /* ---- Tokens that flip in dark ---- */
+    --on-accent: #0f1013; /* dark ink on the (now light-coral / bright) fills */
+    --button-primary-hover: #e6e7ea;
+    --button-danger-solid-hover: #ff8585;
+    --header-bg: rgba(15, 16, 19, 0.82);
+    --card-solid: #1c1f27; /* the check-card mockup — dark card on dark panel */
+    --check-detail-bg: #241416;
+    --code-inline-bg: rgba(255, 255, 255, 0.08);
+    --code-block-bg: #0b0c0f;
+    --code-key: #ff8a81;
+    --panel-grid: rgba(255, 255, 255, 0.03);
+    --panel-ink: #f3f4f6;
+    --panel-ink-dim: rgba(255, 255, 255, 0.66);
+    --panel-ink-faint: rgba(255, 255, 255, 0.56);
+    --panel-ink-quiet: rgba(255, 255, 255, 0.55);
+    --panel-hairline: rgba(255, 255, 255, 0.12);
+    --demo-ink: rgba(255, 255, 255, 0.7);
+    --demo-ink-strong: rgba(255, 255, 255, 0.78);
+    --code-ln: rgba(255, 255, 255, 0.28);
+    --code-comment: rgba(255, 255, 255, 0.4);
+    --cta-ink-dim: rgba(255, 255, 255, 0.66);
+    --cta-ghost-border: rgba(255, 255, 255, 0.26);
+    --cta-ghost-border-hover: rgba(255, 255, 255, 0.4);
+    --cta-ghost-hover-bg: rgba(255, 255, 255, 0.1);
+    --cta-ring: rgba(255, 111, 99, 0.16);
+    --footer-bg: #0a0b0d;
+    --footer-ink: rgba(255, 255, 255, 0.75);
+    --footer-ink-dim: rgba(255, 255, 255, 0.6);
+    --footer-ink-strong: #ffffff;
+    --footer-link: rgba(255, 255, 255, 0.66);
+    --footer-wordmark: rgba(255, 255, 255, 0.06);
+    --ok-border: rgba(63, 202, 119, 0.35);
+    --danger-border: rgba(255, 107, 107, 0.45);
+    --danger-border-hover: rgba(255, 107, 107, 0.65);
+    --danger-border-soft: rgba(255, 107, 107, 0.35);
+    --danger-border-faint: rgba(255, 107, 107, 0.3);
+    --danger-usage-bg: rgba(255, 107, 107, 0.14);
+    --focus-ring: rgba(243, 244, 246, 0.16);
+    --row-flash: rgba(255, 111, 99, 0.16);
+
+    /* ---- Elevation: deeper, darker shadows for dark surfaces ---- */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -16px rgba(0, 0, 0, 0.7);
+    --shadow-float: 0 2px 6px rgba(0, 0, 0, 0.55), 0 24px 48px -24px rgba(0, 0, 0, 0.8);
+
+    /* ---- Canvas backdrops: light particles on dark ground ---- */
+    --backdrop-particle: 226, 228, 233;
+    --backdrop-link: 226, 228, 233;
+    --backdrop-accent: 255, 111, 99;
+  }
 }
 
 * {
@@ -101,7 +233,7 @@ code,
   top: 0;
   z-index: 50;
   border-bottom: 1px solid var(--rule);
-  background: rgba(255, 255, 255, 0.82);
+  background: var(--header-bg);
   backdrop-filter: blur(16px) saturate(140%);
   -webkit-backdrop-filter: blur(16px) saturate(140%);
 }
@@ -176,9 +308,170 @@ code,
 }
 
 @media (max-width: 720px) {
-  .site-nav a:not(.button) {
+  /* Desktop nav links + inline controls give way to the hamburger menu. */
+  .site-nav {
     display: none;
   }
+}
+
+/* Above 720px the mobile nav (hamburger + panel) is not rendered. This lives with
+   the .mobile-nav base rules below via a min-width guard there; here we only handle
+   the desktop nav collapse. */
+
+/* ---- Skip link: visually hidden until keyboard-focused ---- */
+.skip-link {
+  position: absolute;
+  left: 0.75rem;
+  top: -3rem;
+  z-index: 100;
+  padding: 0.55rem 0.95rem;
+  border-radius: var(--radius-sm);
+  background: var(--ink);
+  color: var(--on-accent);
+  font-size: 0.9rem;
+  font-weight: 600;
+  box-shadow: var(--shadow-card);
+  transition: top 160ms var(--ease-out);
+}
+
+.skip-link:focus-visible {
+  top: 0.75rem;
+}
+
+/* ---- Mobile nav ---- */
+.mobile-nav {
+  display: none;
+  align-items: center;
+}
+
+@media (max-width: 720px) {
+  .mobile-nav {
+    display: flex;
+  }
+}
+
+.mobile-nav-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--ink);
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition:
+    background-color 160ms var(--ease-out),
+    border-color 160ms var(--ease-out);
+}
+
+.mobile-nav-toggle:hover {
+  background: var(--bg-soft);
+}
+
+.mobile-menu {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 4rem;
+  z-index: 40;
+  background: var(--bg);
+  border-bottom: 1px solid var(--rule);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition:
+    max-height 240ms var(--ease-out),
+    opacity 180ms var(--ease-out);
+}
+
+.mobile-menu.is-open {
+  max-height: 80vh;
+  opacity: 1;
+}
+
+.mobile-menu-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 1rem 1.5rem 1.4rem;
+}
+
+.mobile-menu-inner > a {
+  padding: 0.75rem 0.25rem;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--ink-dim);
+  border-bottom: 1px solid var(--rule);
+}
+
+.mobile-menu-inner > a:last-child {
+  border-bottom: none;
+}
+
+.mobile-menu-session {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-top: 0.5rem;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.mobile-menu-cta {
+  margin-top: 0.75rem;
+  width: 100%;
+  padding: 0.8rem 1.2rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-menu,
+  .skip-link {
+    transition: none;
+  }
+}
+
+/* ---- Route-level states: error boundary + 404 ---- */
+.route-state {
+  display: flex;
+  justify-content: center;
+  padding: 5rem 1.5rem;
+}
+
+.route-state-card {
+  max-width: 34rem;
+  width: 100%;
+  text-align: center;
+  margin: 0;
+}
+
+.route-state-card h1 {
+  font-size: 1.6rem;
+  font-weight: 660;
+  letter-spacing: -0.02em;
+  margin: 0 0 0.6rem;
+}
+
+.route-state-card p {
+  color: var(--muted);
+  margin: 0 0 1.5rem;
+}
+
+.route-state-card .actions {
+  justify-content: center;
+}
+
+.route-state-code {
+  display: inline-block;
+  font-family: var(--font-mono), monospace;
+  font-size: 2.4rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--accent);
+  margin-bottom: 0.5rem;
 }
 
 /* ---- Session chip: signed-in identity in the header ---- */
@@ -291,12 +584,12 @@ code,
 .button-primary {
   background: var(--ink);
   border-color: var(--ink);
-  color: #ffffff;
+  color: var(--on-accent);
 }
 
 .button-primary:hover {
-  background: #2a2b31;
-  border-color: #2a2b31;
+  background: var(--button-primary-hover);
+  border-color: var(--button-primary-hover);
   transform: translateY(-1px);
   box-shadow: var(--shadow-card);
 }
@@ -314,20 +607,6 @@ code,
   border-radius: var(--radius);
 }
 
-.button-danger {
-  background: transparent;
-  border-color: rgba(212, 51, 51, 0.35);
-  color: var(--danger);
-  padding: 0.35rem 0.8rem;
-  font-size: 0.84rem;
-  box-shadow: none;
-}
-
-.button-danger:hover {
-  background: var(--danger-soft);
-  border-color: rgba(212, 51, 51, 0.55);
-}
-
 .button:disabled {
   opacity: 0.55;
   cursor: not-allowed;
@@ -343,14 +622,24 @@ code,
 
 .hero {
   position: relative;
-  text-align: center;
-  padding: 5.5rem 1.5rem 3.5rem;
-  max-width: 54rem;
-  margin: 0 auto;
+  padding: 5.5rem 0 4rem;
+  overflow: hidden;
 }
 
-.hero > * {
+.hero-grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 32rem;
+  gap: 4rem;
+  align-items: center;
+}
+
+.hero-content {
   animation: rise 600ms var(--ease-out) both;
+}
+
+.hero-content > * {
   position: relative;
   z-index: 1;
 }
@@ -387,18 +676,6 @@ code,
   animation-delay: 60ms;
 }
 
-.hero > *:nth-child(3) {
-  animation-delay: 120ms;
-}
-
-.hero > *:nth-child(4) {
-  animation-delay: 180ms;
-}
-
-.hero > *:nth-child(5) {
-  animation-delay: 240ms;
-}
-
 .eyebrow {
   display: inline-flex;
   align-items: center;
@@ -422,11 +699,12 @@ code,
 }
 
 .hero-title {
-  font-size: clamp(2.5rem, 4.2vw + 1rem, 4rem);
-  font-weight: 680;
-  line-height: 1.06;
-  letter-spacing: -0.034em;
+  font-size: clamp(2.6rem, 3.4vw + 1rem, 3.75rem);
+  font-weight: 700;
+  line-height: 1.03;
+  letter-spacing: -0.042em;
   margin: 0 0 1.3rem;
+  max-width: 15ch;
 }
 
 .hero-title-accent {
@@ -436,26 +714,25 @@ code,
 .hero-lede {
   color: var(--muted);
   font-size: 1.14rem;
-  line-height: 1.6;
-  max-width: 36rem;
-  margin: 0 auto 2.1rem;
+  line-height: 1.65;
+  max-width: 34rem;
+  margin: 0 0 2rem;
 }
 
 .actions {
   display: flex;
   gap: 0.75rem;
   flex-wrap: wrap;
-  justify-content: center;
+  align-items: center;
 }
 
 .hero-trust {
   list-style: none;
-  margin: 2.4rem 0 0;
+  margin: 2rem 0 0;
   padding: 0;
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.6rem 1.75rem;
+  gap: 0.6rem 1.5rem;
 }
 
 .hero-trust li {
@@ -482,7 +759,7 @@ code,
   background: var(--bg-soft);
   border-radius: var(--radius);
   padding: 0.85rem 1.1rem;
-  margin: 0 auto 1.5rem;
+  margin: 0 0 1.5rem;
   font-size: 0.92rem;
   color: var(--ink-dim);
   max-width: 36rem;
@@ -491,7 +768,7 @@ code,
 
 .notice-error {
   color: var(--danger);
-  border-color: rgba(212, 51, 51, 0.25);
+  border-color: var(--danger-border-soft);
   background: var(--danger-soft);
 }
 
@@ -500,18 +777,16 @@ code,
    grid texture as the brand's marketplace feature card). */
 
 .product-panel-wrap {
-  padding: 0 1.5rem 1rem;
-  animation: rise 700ms var(--ease-out) 200ms both;
+  animation: rise 700ms var(--ease-out) 150ms both;
 }
 
 .product-panel {
   position: relative;
-  max-width: var(--maxw);
-  margin: 0 auto;
+  width: 100%;
   border-radius: var(--radius-xl);
   background:
-    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(var(--panel-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--panel-grid) 1px, transparent 1px),
     var(--bg-panel);
   background-size:
     48px 48px,
@@ -519,15 +794,49 @@ code,
     auto;
   padding: clamp(1.5rem, 5vw, 4rem);
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
   overflow: hidden;
+}
+
+/* Terminal-style meta bar above the check card inside the slate stage. */
+.demo-bar {
+  width: 100%;
+  max-width: 34rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0.2rem 0.9rem;
+  color: var(--demo-ink);
+  font-size: 0.78rem;
+}
+
+.demo-repo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.demo-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--demo-ink-strong);
+}
+
+.demo-live i {
+  display: block;
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 999px;
+  background: var(--ok);
 }
 
 .check-card {
   width: 100%;
   max-width: 34rem;
   border-radius: var(--radius-lg);
-  background: #ffffff;
+  background: var(--card-solid);
   box-shadow: var(--shadow-float);
   overflow: hidden;
   font-size: 0.9rem;
@@ -554,7 +863,7 @@ code,
   font-weight: 600;
   color: var(--ok);
   background: var(--ok-soft);
-  border: 1px solid rgba(26, 158, 80, 0.25);
+  border: 1px solid var(--ok-border);
   padding: 0.15rem 0.5rem;
   border-radius: 999px;
 }
@@ -570,7 +879,7 @@ code,
   font-size: 0.85em;
   padding: 0.05rem 0.3rem;
   border-radius: 5px;
-  background: rgba(23, 24, 28, 0.06);
+  background: var(--code-inline-bg);
   color: var(--ink-dim);
 }
 
@@ -597,12 +906,12 @@ code,
 }
 
 .check-icon-pass {
-  color: #ffffff;
+  color: var(--on-accent);
   background: var(--ok);
 }
 
 .check-icon-fail {
-  color: #ffffff;
+  color: var(--on-accent);
   background: var(--danger);
 }
 
@@ -630,8 +939,8 @@ code,
   margin: 0.3rem 0.75rem 0.75rem;
   padding: 0.85rem 0.9rem;
   border-radius: var(--radius);
-  border: 1px solid rgba(212, 51, 51, 0.18);
-  background: #fffafa;
+  border: 1px solid var(--danger-border-faint);
+  background: var(--check-detail-bg);
 }
 
 .check-detail-head {
@@ -688,7 +997,7 @@ code,
   font-size: 0.95em;
   padding: 0.05rem 0.35rem;
   border-radius: 5px;
-  background: rgba(212, 51, 51, 0.08);
+  background: var(--danger-usage-bg);
   color: var(--danger);
 }
 
@@ -704,51 +1013,80 @@ code,
   font-weight: 600;
 }
 
-/* ---- Proof strip: real numbers under the product panel ---- */
+/* ---- Proof strip: real numbers under the hero ---- */
 
-.proof-strip {
-  display: flex;
-  justify-content: center;
-  gap: 4rem;
-  padding: 2.75rem 1.5rem;
-  flex-wrap: wrap;
+.proof {
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  background: var(--bg-soft);
+}
+
+.proof-inner {
+  min-height: 6.5rem;
+  display: grid;
+  grid-template-columns: 1.2fr repeat(3, 1fr);
+  align-items: center;
+  gap: 2rem;
+  padding-top: 1.5rem;
+  padding-bottom: 1.5rem;
+}
+
+.proof-lede {
+  color: var(--ink);
+  font-size: 0.95rem;
+  font-weight: 650;
+  line-height: 1.45;
+  padding-right: 2rem;
+}
+
+.proof-lede span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 500;
+  margin-top: 0.2rem;
 }
 
 .proof-stat {
-  text-align: center;
+  padding-left: 2rem;
+  border-left: 1px solid var(--rule-strong);
 }
 
 .proof-num {
   display: block;
-  font-size: 1.7rem;
-  font-weight: 680;
-  letter-spacing: -0.025em;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
   color: var(--ink);
-  line-height: 1.2;
+  line-height: 1.1;
   font-variant-numeric: tabular-nums;
 }
 
 .proof-label {
   display: block;
-  margin-top: 0.2rem;
-  font-size: 0.86rem;
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
   color: var(--muted);
 }
 
 /* ============ Sections ============ */
 
 .section {
-  padding: 5rem 1.5rem;
+  padding: 6.5rem 0;
 }
 
-.section-rule {
+.section-soft {
+  background: var(--bg-soft);
   border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
 }
 
 .section-head {
-  text-align: center;
-  max-width: 40rem;
-  margin: 0 auto 3rem;
+  display: grid;
+  grid-template-columns: 1fr 27rem;
+  gap: 5rem;
+  align-items: end;
+  margin: 0 auto 3.25rem;
 }
 
 .section-kicker {
@@ -756,9 +1094,9 @@ code,
   align-items: center;
   gap: 0.4rem;
   font-size: 0.8rem;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--ink-dim);
-  margin-bottom: 1rem;
+  margin-bottom: 0.85rem;
 }
 
 .section-kicker::before {
@@ -770,10 +1108,10 @@ code,
 }
 
 .section-head h2 {
-  font-size: clamp(1.8rem, 2.4vw + 1rem, 2.5rem);
-  font-weight: 660;
-  letter-spacing: -0.028em;
-  line-height: 1.12;
+  font-size: clamp(1.9rem, 2.4vw + 1rem, 2.6rem);
+  font-weight: 690;
+  letter-spacing: -0.035em;
+  line-height: 1.1;
   margin: 0;
 }
 
@@ -783,26 +1121,29 @@ code,
 
 .section-sub {
   color: var(--muted);
-  font-size: 1.02rem;
-  margin: 1rem auto 0;
-  max-width: 34rem;
+  font-size: 1rem;
+  line-height: 1.65;
+  margin: 0 0 0.2rem;
 }
 
-/* ---- Steps ---- */
+/* ---- Flow (how it works) ---- */
 
-.steps {
+.flow {
   list-style: none;
-  counter-reset: step;
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1.25rem;
+  grid-template-columns: 1fr 3.5rem 1fr 3.5rem 1fr;
+  align-items: stretch;
 }
 
-.step {
-  padding: 1.75rem 1.6rem;
-  border: 1px solid var(--rule);
+.flow-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 15rem;
+  padding: 1.75rem;
+  border: 1px solid var(--rule-strong);
   background: var(--bg);
   border-radius: var(--radius-lg);
   transition:
@@ -811,49 +1152,183 @@ code,
     box-shadow 200ms var(--ease-out);
 }
 
-.step:hover {
+.flow-card:hover {
   transform: translateY(-2px);
-  border-color: var(--rule-strong);
   box-shadow: var(--shadow-card);
 }
 
-.step-num {
-  display: inline-flex;
+.flow-card-final {
+  background: var(--bg-panel);
+  border-color: var(--bg-panel);
+}
+
+.flow-card-final:hover {
+  border-color: var(--bg-panel);
+}
+
+.step-label {
+  display: flex;
   align-items: center;
-  justify-content: center;
-  width: 2.1rem;
-  height: 2.1rem;
-  border-radius: 8px;
-  font-size: 0.95rem;
-  font-weight: 650;
-  color: #ffffff;
-  background: var(--ink);
-  margin-bottom: 1.1rem;
+  justify-content: space-between;
+  margin-bottom: auto;
+  padding-bottom: 3rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
-.step h3 {
-  font-size: 1.08rem;
-  margin: 0 0 0.5rem;
+.step-label strong {
+  color: var(--accent);
+  font-size: 0.8rem;
 }
 
-.step p {
+.flow-card-final .step-label {
+  color: var(--panel-ink-quiet);
+}
+
+.flow-card h3 {
+  margin: 0 0 0.6rem;
+  font-size: 1.2rem;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+
+.flow-card p {
   margin: 0;
   color: var(--muted);
-  font-size: 0.94rem;
+  font-size: 0.9rem;
   line-height: 1.6;
 }
 
-/* ---- Feature grid ---- */
+.flow-card-final h3 {
+  color: var(--panel-ink);
+}
 
-.feature-grid {
+.flow-card-final p {
+  color: var(--panel-ink-dim);
+}
+
+.flow-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--faint);
+}
+
+/* ---- Features layout ---- */
+
+.features-layout {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: 1.05fr 0.95fr;
   gap: 1.25rem;
 }
 
+.feature-primary {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 27rem;
+  overflow: hidden;
+  padding: 2.1rem;
+  border-radius: var(--radius-xl);
+  background: var(--bg-panel);
+  color: var(--panel-ink);
+}
+
+.feature-tag {
+  color: var(--panel-ink-faint);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.feature-primary h3 {
+  margin: 0.9rem 0 0.8rem;
+  max-width: 28rem;
+  color: var(--panel-ink);
+  font-size: 1.7rem;
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+}
+
+.feature-primary p {
+  margin: 0;
+  max-width: 29rem;
+  color: var(--panel-ink-dim);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.code-sample {
+  margin-top: 1.75rem;
+  border: 1px solid var(--panel-hairline);
+  border-radius: var(--radius);
+  background: var(--code-block-bg);
+  padding: 1.05rem 1.1rem;
+  color: var(--demo-ink-strong);
+  font-size: 0.78rem;
+  line-height: 1.9;
+}
+
+.code-sample .ln {
+  display: inline-block;
+  width: 1.6rem;
+  color: var(--code-ln);
+}
+
+.code-sample .key {
+  color: var(--code-key);
+}
+
+.code-sample .comment {
+  color: var(--code-comment);
+}
+
+.feature-stack {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+
+.privacy-strip {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.35rem 1.5rem;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+}
+
+.privacy-copy {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.privacy-strip .feature-icon {
+  margin: 0;
+  flex: none;
+}
+
+.privacy-strip h3 {
+  margin: 0 0 0.15rem;
+  font-size: 1rem;
+}
+
+.privacy-strip p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
 .feature-card {
-  padding: 1.75rem 1.7rem;
-  border: 1px solid var(--rule);
+  padding: 1.6rem;
+  border: 1px solid var(--rule-strong);
   background: var(--bg);
   border-radius: var(--radius-lg);
   transition:
@@ -872,12 +1347,14 @@ code,
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.5rem;
-  height: 1.5rem;
-  margin-bottom: 1.1rem;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: var(--radius-sm);
+  margin-bottom: 1.5rem;
   color: var(--accent);
+  background: var(--danger-soft);
   font-family: var(--font-mono), monospace;
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 600;
 }
 
@@ -895,112 +1372,159 @@ code,
 
 /* ---- FAQ ---- */
 
-.faq-grid {
+.faq-wrap {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1.25rem;
+  grid-template-columns: 20rem 1fr;
+  gap: 5rem;
+  align-items: start;
 }
 
-.faq-card {
-  padding: 1.5rem 1.5rem 1.6rem;
-  border: 1px solid var(--rule);
-  background: var(--bg);
-  border-radius: var(--radius-lg);
-  transition:
-    transform 200ms var(--ease-out),
-    border-color 200ms var(--ease-out),
-    box-shadow 200ms var(--ease-out);
+.faq-intro {
+  position: sticky;
+  top: 6rem;
 }
 
-.faq-card:hover {
-  transform: translateY(-2px);
-  border-color: var(--rule-strong);
-  box-shadow: var(--shadow-card);
+.faq-intro h2 {
+  font-size: clamp(1.9rem, 2.4vw + 1rem, 2.6rem);
+  font-weight: 690;
+  letter-spacing: -0.035em;
+  line-height: 1.1;
+  margin: 0;
 }
 
-.faq-card-dark:hover {
-  border-color: var(--bg-panel);
+.faq-intro p {
+  margin: 1.1rem 0 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1.65;
 }
 
-.faq-card h3 {
-  display: flex;
-  gap: 0.6rem;
-  font-size: 0.98rem;
-  font-weight: 620;
-  line-height: 1.4;
-  margin: 0 0 0.6rem;
+.faq-list {
+  border-top: 1px solid var(--rule-strong);
+}
+
+.faq-item {
+  display: grid;
+  grid-template-columns: 1fr 1.75rem;
+  gap: 1.5rem;
+  padding: 1.6rem 0;
+  border-bottom: 1px solid var(--rule-strong);
+}
+
+.faq-item h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 1.05rem;
+  font-weight: 640;
+  letter-spacing: -0.01em;
+}
+
+.faq-item p {
+  max-width: 40rem;
+  margin: 0.55rem 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.65;
 }
 
 .faq-q {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.25rem;
-  height: 1.25rem;
+  width: 1.75rem;
+  height: 1.75rem;
   flex: none;
+  border: 1px solid var(--rule-strong);
   border-radius: 999px;
-  background: var(--ink);
-  color: #ffffff;
-  font-size: 0.72rem;
-  font-weight: 700;
-  transform: translateY(0.1rem);
-}
-
-.faq-card p {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.9rem;
-  line-height: 1.6;
-}
-
-/* The first FAQ card is dark — the reference pattern's focal anchor. */
-.faq-card-dark {
-  background: var(--bg-panel);
-  border-color: var(--bg-panel);
-}
-
-.faq-card-dark h3 {
-  color: #ffffff;
-}
-
-.faq-card-dark .faq-q {
-  background: #ffffff;
+  background: var(--bg);
   color: var(--ink);
-}
-
-.faq-card-dark p {
-  color: rgba(255, 255, 255, 0.66);
+  font-size: 0.85rem;
+  font-weight: 700;
 }
 
 /* ============ CTA band ============ */
 
+.cta-section {
+  padding: 0 1.5rem 5rem;
+}
+
 .cta-band {
-  text-align: center;
-  padding: 4rem 2rem;
-  border: 1px solid var(--rule);
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 2.5rem;
+  padding: 3.25rem 3.5rem;
   border-radius: var(--radius-xl);
-  background: var(--bg-soft);
+  background: var(--bg-panel);
+}
+
+.cta-band::after {
+  content: '';
+  position: absolute;
+  right: -2.75rem;
+  top: -7rem;
+  width: 17.5rem;
+  height: 17.5rem;
+  border: 3rem solid var(--cta-ring);
+  border-radius: 40% 40% 46% 46%;
+  transform: rotate(12deg);
+  pointer-events: none;
+}
+
+.cta-copy,
+.cta-band .actions {
+  position: relative;
+  z-index: 1;
 }
 
 .cta-band h2 {
-  font-size: clamp(1.8rem, 2.2vw + 1rem, 2.4rem);
-  font-weight: 660;
-  letter-spacing: -0.028em;
-  margin: 0 0 0.6rem;
+  max-width: 40rem;
+  color: var(--panel-ink);
+  font-size: clamp(1.6rem, 1.6vw + 1rem, 2.25rem);
+  font-weight: 680;
+  letter-spacing: -0.03em;
+  line-height: 1.12;
+  margin: 0;
 }
 
 .cta-band p {
-  color: var(--muted);
-  font-size: 1.02rem;
-  margin: 0 0 1.9rem;
+  color: var(--cta-ink-dim);
+  font-size: 0.98rem;
+  margin: 0.7rem 0 0;
+}
+
+/* Primary CTA inside the dark band uses the coral accent for maximum pop. */
+.cta-band .button-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.cta-band .button-primary:hover {
+  background: var(--accent-deep);
+  border-color: var(--accent-deep);
+}
+
+/* The secondary CTA on the dark band is a ghost button. */
+.cta-band .button:not(.button-primary) {
+  background: transparent;
+  border-color: var(--cta-ghost-border);
+  color: var(--panel-ink);
+  box-shadow: none;
+}
+
+.cta-band .button:not(.button-primary):hover {
+  background: var(--cta-ghost-hover-bg);
+  border-color: var(--cta-ghost-border-hover);
 }
 
 /* ============ Footer ============ */
 
 .site-footer {
   margin-top: 5rem;
-  background: #0f1013;
-  color: rgba(255, 255, 255, 0.72);
+  background: var(--footer-bg);
+  color: var(--footer-ink);
   overflow: hidden;
 }
 
@@ -1013,19 +1537,19 @@ code,
 }
 
 .site-footer .brand {
-  color: #ffffff;
+  color: var(--footer-ink-strong);
 }
 
 .site-footer-note {
   margin: 0.8rem 0 0;
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--footer-ink-dim);
   font-size: 0.92rem;
   max-width: 22rem;
 }
 
 .site-footer-copy {
   margin: 1.6rem 0 0;
-  color: rgba(255, 255, 255, 0.38);
+  color: var(--footer-ink-dim);
   font-size: 0.8rem;
 }
 
@@ -1043,18 +1567,18 @@ code,
 }
 
 .footer-col-title {
-  color: #ffffff;
+  color: var(--footer-ink-strong);
   font-weight: 600;
   margin-bottom: 0.25rem;
 }
 
 .footer-col a {
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--footer-link);
   transition: color 150ms var(--ease-out);
 }
 
 .footer-col a:hover {
-  color: #ffffff;
+  color: var(--footer-ink-strong);
 }
 
 /* The giant clipped wordmark — the LAUNCHKIT footer move. */
@@ -1064,7 +1588,7 @@ code,
   letter-spacing: -0.04em;
   line-height: 0.78;
   text-align: center;
-  color: rgba(255, 255, 255, 0.055);
+  color: var(--footer-wordmark);
   user-select: none;
   pointer-events: none;
   margin-bottom: -0.16em;
@@ -1213,86 +1737,6 @@ code,
   border: 1px solid var(--rule);
 }
 
-/* ============ Table ============ */
-
-.table-scroll {
-  overflow-x: auto;
-  margin: 0 -0.4rem;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-variant-numeric: tabular-nums;
-}
-
-th,
-td {
-  text-align: left;
-  padding: 0.7rem 0.85rem;
-  border-bottom: 1px solid var(--rule);
-  font-size: 0.9rem;
-  white-space: nowrap;
-}
-
-th {
-  color: var(--faint);
-  font-weight: 600;
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-tbody tr {
-  transition:
-    background-color 150ms var(--ease-out),
-    box-shadow 150ms var(--ease-out);
-}
-
-/* Hover: soft tint plus a coral edge marker — a subtle lift without moving the
-   row (transforms on <tr> are unreliable across table layouts). */
-tbody tr:hover {
-  background: var(--bg-soft);
-  box-shadow: inset 2px 0 0 var(--accent);
-}
-
-tbody tr:last-child td {
-  border-bottom: none;
-}
-
-.cell-repo {
-  color: var(--ink);
-  font-weight: 500;
-}
-
-.cell-code {
-  font-size: 0.82rem;
-  padding: 0.1rem 0.4rem;
-  border-radius: 6px;
-  background: var(--bg-soft);
-  border: 1px solid var(--rule);
-  color: var(--ink-dim);
-}
-
-.cell-action {
-  text-align: right;
-}
-
-/* Body-cell content lives in an inner block so the delete-exit can collapse
-   max-height/padding on the WRAPPER (never on the <td> or the global th,td rule).
-   Vertical padding moves here from the cell so the collapse removes it too;
-   horizontal padding stays on the <td> to keep columns aligned with the header. */
-.dashboard td {
-  padding-top: 0;
-  padding-bottom: 0;
-}
-
-.cell-inner {
-  display: block;
-  padding-top: 0.7rem;
-  padding-bottom: 0.7rem;
-}
-
 /* ============ Empty / loading states ============ */
 
 .empty-state {
@@ -1323,24 +1767,6 @@ tbody tr:last-child td {
   margin: 0;
   color: var(--muted);
   font-size: 0.92rem;
-}
-
-.loading-row {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  color: var(--muted);
-  font-size: 0.92rem;
-  padding: 1rem 0;
-}
-
-.spinner {
-  width: 1rem;
-  height: 1rem;
-  border-radius: 999px;
-  border: 2px solid var(--rule-strong);
-  border-top-color: var(--ink);
-  animation: spin 620ms linear infinite;
 }
 
 /* ============ Forms ============ */
@@ -1414,7 +1840,7 @@ input[type='text']:focus-visible,
 select:focus-visible {
   outline: none;
   border-color: var(--ink);
-  box-shadow: 0 0 0 3px rgba(23, 24, 28, 0.08);
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 select:disabled {
@@ -1434,13 +1860,306 @@ input[type='checkbox'] {
   justify-content: flex-end;
 }
 
-/* ============ Motion ============ */
+/* ============ Dashboard: stats bar (T11) ============ */
 
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+.dashboard-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--bg);
+  margin-bottom: 1.5rem;
+  box-shadow: var(--shadow-sm);
 }
+
+.dashboard-stats .stat {
+  padding: 1rem 1.1rem;
+  border-right: 1px solid var(--rule);
+}
+
+.dashboard-stats .stat:last-child {
+  border-right: 0;
+}
+
+.stat-label {
+  display: block;
+  color: var(--faint);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.stat-value {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.3rem;
+  color: var(--ink);
+  font-size: 0.94rem;
+  font-weight: 620;
+}
+
+.status-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--ok);
+  flex: none;
+}
+
+/* ============ Dashboard: grouped link list (T11) ============ */
+
+.link-groups {
+  display: grid;
+  gap: 1.1rem;
+}
+
+.link-group {
+  padding: 1.15rem 1.2rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+
+.repo-line {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.repo-icon {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex: none;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: var(--bg-soft);
+  color: var(--ink);
+}
+
+.repo-line-text {
+  min-width: 0;
+}
+
+.repo-name {
+  color: var(--ink);
+  font-size: 0.95rem;
+  font-weight: 650;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.repo-role {
+  color: var(--faint);
+  font-size: 0.75rem;
+  margin-top: 0.1rem;
+}
+
+.spec-chip {
+  margin-left: auto;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--bg-soft);
+  font-size: 0.72rem;
+  color: var(--ink-dim);
+  white-space: nowrap;
+}
+
+.connector {
+  height: 1.1rem;
+  margin-left: 1.1rem;
+  border-left: 1px solid var(--rule-strong);
+}
+
+.frontend-list {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.frontend-row {
+  padding: 0.75rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--bg);
+  transition:
+    background-color 150ms var(--ease-out),
+    box-shadow 150ms var(--ease-out);
+}
+
+.frontend-row:hover {
+  background: var(--bg-soft);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.frontend-row-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: center;
+}
+
+.frontend-main {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  min-width: 0;
+}
+
+.mini-icon {
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex: none;
+  border-radius: 8px;
+  background: var(--bg-soft);
+  color: var(--muted);
+}
+
+.frontend-text {
+  min-width: 0;
+}
+
+.frontend-name {
+  color: var(--ink);
+  font-size: 0.87rem;
+  font-weight: 620;
+  overflow-wrap: anywhere;
+}
+
+.path {
+  display: block;
+  color: var(--faint);
+  font-size: 0.72rem;
+  margin-top: 0.1rem;
+}
+
+.icon-button {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  flex: none;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    background-color 150ms var(--ease-out),
+    color 150ms var(--ease-out),
+    border-color 150ms var(--ease-out);
+}
+
+.icon-button:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-color: var(--danger-border-soft);
+}
+
+.icon-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Inline delete confirmation, in-context beneath the row it deletes. */
+.confirm {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 1rem;
+  align-items: center;
+  margin-top: 0.7rem;
+  padding: 0.8rem 0.85rem;
+  border: 1px solid var(--danger-border-soft);
+  border-radius: 10px;
+  background: var(--danger-soft);
+  animation: fade-in 180ms var(--ease-out) both;
+}
+
+.confirm strong {
+  display: block;
+  color: var(--ink);
+  font-size: 0.84rem;
+  margin-bottom: 0.1rem;
+}
+
+.confirm p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.confirm .button {
+  padding: 0.4rem 0.7rem;
+  font-size: 0.8rem;
+}
+
+.button-quiet {
+  box-shadow: none;
+  background: transparent;
+  border-color: transparent;
+}
+
+.button-quiet:hover {
+  background: var(--bg-soft);
+  border-color: var(--rule);
+}
+
+.button-danger-solid {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--on-accent);
+  box-shadow: none;
+}
+
+.button-danger-solid:hover {
+  background: var(--button-danger-solid-hover);
+  border-color: var(--button-danger-solid-hover);
+}
+
+/* Load-failure recovery notice: message + Retry side by side. */
+.dashboard-load-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  max-width: none;
+}
+
+.dashboard-retry {
+  flex: none;
+}
+
+/* Empty admin-repos onboarding card. */
+.dashboard-onboarding {
+  text-align: center;
+  padding: 3rem 1.5rem;
+  display: grid;
+  justify-items: center;
+  gap: 0.35rem;
+}
+
+.dashboard-onboarding .empty-state-hint {
+  max-width: 30rem;
+  margin-bottom: 0.8rem;
+}
+
+.form-upsert-hint {
+  margin: 0;
+  color: var(--ink-dim);
+}
+
+
+/* ============ Motion ============ */
 
 @keyframes rise {
   from {
@@ -1455,18 +2174,76 @@ input[type='checkbox'] {
 
 /* ============ Responsive ============ */
 
-@media (max-width: 900px) {
+@media (max-width: 950px) {
   .hero {
     padding-top: 4rem;
   }
 
-  .steps,
-  .faq-grid {
+  .hero-grid {
+    grid-template-columns: 1fr;
+    gap: 2.5rem;
+  }
+
+  .hero-title {
+    max-width: none;
+  }
+
+  .product-panel {
+    max-width: 34rem;
+  }
+
+  .proof-inner {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .proof-lede {
+    display: none;
+  }
+
+  .section-head {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .flow {
     grid-template-columns: 1fr;
   }
 
-  .feature-grid {
+  .flow-card {
+    min-height: 0;
+  }
+
+  .step-label {
+    padding-bottom: 2rem;
+  }
+
+  .flow-arrow {
+    height: 2.75rem;
+    transform: rotate(90deg);
+  }
+
+  .features-layout,
+  .feature-stack {
     grid-template-columns: 1fr;
+  }
+
+  .feature-primary {
+    min-height: 0;
+  }
+
+  .faq-wrap {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+
+  .faq-intro {
+    position: static;
+  }
+
+  .cta-band {
+    grid-template-columns: 1fr;
+    gap: 1.75rem;
+    padding: 2.5rem 2rem;
   }
 
   .site-footer-inner {
@@ -1484,8 +2261,69 @@ input[type='checkbox'] {
     flex-direction: column;
   }
 
+  .dashboard-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-stats .stat {
+    border-right: 0;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .dashboard-stats .stat:last-child {
+    border-bottom: 0;
+  }
+
+  .card {
+    padding: 1.2rem;
+  }
+
+  .link-group {
+    padding: 1rem;
+  }
+
+  .repo-line {
+    align-items: flex-start;
+  }
+
+  .spec-chip {
+    display: none;
+  }
+
+  .confirm {
+    grid-template-columns: 1fr;
+    gap: 0.7rem;
+  }
+
+  .confirm-actions {
+    justify-content: flex-end;
+  }
+
+  .dashboard-load-error {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
   .section {
-    padding: 3.5rem 1.5rem;
+    padding: 4rem 0;
+  }
+
+  .cta-section {
+    padding-bottom: 3.5rem;
+  }
+
+  .proof-inner {
+    gap: 1rem;
+  }
+
+  .proof-stat {
+    padding-left: 1rem;
+  }
+
+  .privacy-strip {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
   }
 }
 
@@ -1533,45 +2371,42 @@ input[type='checkbox'] {
   animation: rise 560ms var(--ease-out) both;
 }
 
-.reveal.is-visible .steps > .step,
-.reveal.is-visible .feature-grid > .feature-card,
-.reveal.is-visible .faq-grid > .faq-card,
-.reveal.is-visible .proof-strip > .proof-stat {
+.reveal.is-visible .flow > .flow-card,
+.reveal.is-visible .features-layout > .feature-primary,
+.reveal.is-visible .feature-stack > .feature-card,
+.reveal.is-visible .feature-stack > .privacy-strip,
+.reveal.is-visible .faq-list > .faq-item {
   animation: rise 520ms var(--ease-out) both;
 }
 
 /* Card stagger — ~70ms between siblings, offset behind the section-head. */
-.reveal.is-visible .steps > .step:nth-child(1),
-.reveal.is-visible .feature-grid > .feature-card:nth-child(1),
-.reveal.is-visible .faq-grid > .faq-card:nth-child(1) {
+.reveal.is-visible .flow > .flow-card:nth-child(1),
+.reveal.is-visible .faq-list > .faq-item:nth-child(1) {
   animation-delay: 120ms;
 }
-.reveal.is-visible .steps > .step:nth-child(2),
-.reveal.is-visible .feature-grid > .feature-card:nth-child(2),
-.reveal.is-visible .faq-grid > .faq-card:nth-child(2) {
+.reveal.is-visible .flow > .flow-card:nth-child(3),
+.reveal.is-visible .faq-list > .faq-item:nth-child(2) {
   animation-delay: 190ms;
 }
-.reveal.is-visible .steps > .step:nth-child(3),
-.reveal.is-visible .feature-grid > .feature-card:nth-child(3),
-.reveal.is-visible .faq-grid > .faq-card:nth-child(3) {
+.reveal.is-visible .flow > .flow-card:nth-child(5),
+.reveal.is-visible .faq-list > .faq-item:nth-child(3) {
   animation-delay: 260ms;
 }
-.reveal.is-visible .feature-grid > .feature-card:nth-child(4),
-.reveal.is-visible .faq-grid > .faq-card:nth-child(4) {
+.reveal.is-visible .faq-list > .faq-item:nth-child(4) {
   animation-delay: 330ms;
 }
-.reveal.is-visible .faq-grid > .faq-card:nth-child(5) {
+.reveal.is-visible .faq-list > .faq-item:nth-child(5) {
   animation-delay: 400ms;
 }
-.reveal.is-visible .faq-grid > .faq-card:nth-child(6) {
+.reveal.is-visible .faq-list > .faq-item:nth-child(6) {
   animation-delay: 470ms;
 }
 
 /* Proof stats: no leading section-head, so start immediately with a light stagger. */
-.reveal.is-visible .proof-strip > .proof-stat:nth-child(2) {
+.reveal.is-visible .proof-inner > .proof-stat:nth-child(3) {
   animation-delay: 90ms;
 }
-.reveal.is-visible .proof-strip > .proof-stat:nth-child(3) {
+.reveal.is-visible .proof-inner > .proof-stat:nth-child(4) {
   animation-delay: 180ms;
 }
 
@@ -1660,51 +2495,49 @@ input[type='checkbox'] {
 
 /* Skeleton → content swap reads as a crossfade: the skeleton unmounts while the
    real content fades + rises in, rather than popping. */
-.dashboard .table-scroll,
+.dashboard .link-groups,
 .dashboard .empty-state {
   animation: fade-in 420ms var(--ease-out) both;
 }
 
-/* Table rows rise in sequence when the list mounts. */
-.dashboard tbody tr {
+/* Frontend rows rise in sequence when the list mounts. */
+.dashboard .frontend-row {
   animation: rise 440ms var(--ease-out) both;
 }
-.dashboard tbody tr:nth-child(1) {
+.dashboard .frontend-row:nth-child(1) {
   animation-delay: 40ms;
 }
-.dashboard tbody tr:nth-child(2) {
+.dashboard .frontend-row:nth-child(2) {
   animation-delay: 95ms;
 }
-.dashboard tbody tr:nth-child(3) {
+.dashboard .frontend-row:nth-child(3) {
   animation-delay: 150ms;
 }
-.dashboard tbody tr:nth-child(4) {
+.dashboard .frontend-row:nth-child(4) {
   animation-delay: 205ms;
 }
-.dashboard tbody tr:nth-child(5) {
+.dashboard .frontend-row:nth-child(5) {
   animation-delay: 260ms;
 }
-.dashboard tbody tr:nth-child(n + 6) {
+.dashboard .frontend-row:nth-child(n + 6) {
   animation-delay: 315ms;
 }
 
 /* One-shot highlight on a freshly created link row — keeps the entrance rise in
    the same shorthand so the new row still rises AND flashes. */
-tbody tr.row-created {
+.frontend-row.row-created {
   animation:
     rise 440ms var(--ease-out) both,
     row-flash 1.2s var(--ease-out) both;
 }
 
-/* Delete exit: fade + collapse the inner wrapper before the row leaves state.
-   Only max-height/padding/opacity on .cell-inner animate (the sanctioned layout
-   exception); the <td> and global th,td rule are untouched. */
-.dashboard tbody tr.row-deleting .cell-inner {
+/* Delete exit: fade + collapse the row itself before it leaves state. The
+   grouped layout has no inner wrapper, so max-height/padding/margin/opacity
+   animate on the .frontend-row <div> directly. */
+.dashboard .frontend-row.row-deleting {
   overflow: hidden;
+  border-color: transparent;
   animation: row-collapse 300ms var(--ease-out) forwards;
-}
-.dashboard tbody tr.row-deleting td {
-  border-bottom-color: transparent;
 }
 
 /* Count badge pops whenever the number changes (React remounts it via key). */
@@ -1782,9 +2615,10 @@ tbody tr.row-created {
   }
 }
 
+/* One-shot background flash on a freshly created link row. */
 @keyframes row-flash {
   from {
-    background-color: rgba(233, 86, 74, 0.12);
+    background-color: var(--row-flash);
   }
   to {
     background-color: transparent;
@@ -1800,20 +2634,26 @@ tbody tr.row-created {
   }
 }
 
-/* Collapse the row's inner wrapper on delete — starts near the real row height
-   (~2.4rem body + 1.4rem padding) so the collapse reads immediately. */
+/* Collapse the row on delete — starts near the real row height so the collapse
+   reads immediately, then shrinks height, padding and border away. Also pulls in
+   the surrounding .frontend-list grid gap via a negative-trending margin so the
+   neighbours close up smoothly. */
 @keyframes row-collapse {
   from {
-    max-height: 3.4rem;
+    max-height: 5rem;
     opacity: 1;
-    padding-top: 0.7rem;
-    padding-bottom: 0.7rem;
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+    border-width: 1px;
+    margin-bottom: 0;
   }
   to {
     max-height: 0;
     opacity: 0;
     padding-top: 0;
     padding-bottom: 0;
+    border-width: 0;
+    margin-bottom: -0.5rem;
   }
 }
 
@@ -1854,33 +2694,36 @@ tbody tr.row-created {
    keep decorative pre-states (the h2 underline) from being stuck hidden. */
 @media (prefers-reduced-motion: reduce) {
   .reveal.is-visible .section-head,
-  .reveal.is-visible .steps > .step,
-  .reveal.is-visible .feature-grid > .feature-card,
-  .reveal.is-visible .faq-grid > .faq-card,
-  .reveal.is-visible .proof-strip > .proof-stat,
+  .reveal.is-visible .flow > .flow-card,
+  .reveal.is-visible .features-layout > .feature-primary,
+  .reveal.is-visible .feature-stack > .feature-card,
+  .reveal.is-visible .feature-stack > .privacy-strip,
+  .reveal.is-visible .faq-list > .faq-item,
+  .reveal.is-visible .proof-inner > .proof-stat,
   .product-panel-wrap.is-playing .check-row,
   .product-panel-wrap.is-playing .check-icon,
   .product-panel-wrap.is-playing .check-detail,
   .product-panel-wrap.is-playing .check-blocked,
-  tbody tr.row-created,
+  .frontend-row.row-created,
   .skeleton-row,
   .dashboard > .dashboard-topbar,
   .dashboard > .card,
-  .dashboard .table-scroll,
+  .dashboard .link-groups,
   .dashboard .empty-state,
-  .dashboard tbody tr,
+  .dashboard .frontend-row,
   .dashboard-intro .section-kicker-live::before,
   .count-badge {
     animation: none !important;
   }
 
   /* The delete-exit still needs to happen; the JS timeout fires regardless. Snap
-     the wrapper closed instantly so there is no lingering half-open row. */
-  .dashboard tbody tr.row-deleting .cell-inner {
+     the row closed instantly so there is no lingering half-open row. */
+  .dashboard .frontend-row.row-deleting {
     animation: none !important;
     max-height: 0;
     padding-top: 0;
     padding-bottom: 0;
+    border-width: 0;
     opacity: 0;
     overflow: hidden;
   }

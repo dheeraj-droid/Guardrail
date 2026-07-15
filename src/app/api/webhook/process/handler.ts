@@ -20,25 +20,15 @@
 // claim table was removed: a claim committed before work is durably handed off has no
 // safe release path on either failure mode, so it silently swallows the very retries
 // it was meant to protect).
-import { loadEnv, loadQueueEnv, type QueueEnv } from '@/config/env';
+import { loadQueueEnv, type QueueEnv } from '@/config/env';
 import { verifyQStashSignature } from '@/lib/queue/qstash';
-import { createDbClient } from '@/lib/db/supabase';
-import { getInstallationClient } from '@/lib/github/client';
 import {
   processPullRequest,
   type PipelineDeps,
 } from '@/lib/pipeline/processPullRequest';
+import { buildDeps } from '@/app/api/webhook/_lib/buildDeps';
+import { checkBodySize } from '@/app/api/_lib/bodySizeGuard';
 import type { PipelineInput } from '@/types/github';
-
-/**
- * Module-private helper — constructs the production PipelineDeps. Called INSIDE the
- * request path (this route awaits the pipeline directly), never at module top level
- * (imports must stay side-effect free for tests and builds without env vars).
- */
-function buildDeps(): PipelineDeps {
-  const env = loadEnv();
-  return { env, db: createDbClient(env), getInstallationClient };
-}
 
 /**
  * Testing seam. Prod wiring (route.ts) uses every default.
@@ -51,6 +41,10 @@ export function makePostHandler(overrides?: {
   const pipeline = overrides?.pipeline ?? processPullRequest;
 
   return async function POST(req: Request): Promise<Response> {
+    // 0. Body-size guard BEFORE reading the body (Content-Length only; see bodySizeGuard).
+    const oversize = checkBodySize(req);
+    if (oversize) return oversize;
+
     // 1. RAW body FIRST — same discipline as the GitHub route even though this is an
     //    internal hop; the signature covers the raw bytes.
     const raw = await req.text();

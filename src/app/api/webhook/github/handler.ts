@@ -29,26 +29,16 @@
 // created nothing lets a retry proceed and create fresh; one that created an in-flight
 // run gets it reused -- so it is the sole, delivery-mechanism-agnostic mechanism.
 import { after } from 'next/server';
-import { loadEnv, isQueueConfigured, loadQueueEnv, type QueueEnv } from '@/config/env';
+import { loadEnv, isQueueConfigured, loadQueueEnv, readAppBaseUrl, type QueueEnv } from '@/config/env';
 import { verifyGithubSignature } from '@/lib/crypto/verifySignature';
-import { createDbClient } from '@/lib/db/supabase';
-import { getInstallationClient } from '@/lib/github/client';
 import { publishPipelineJob } from '@/lib/queue/qstash';
 import {
   processPullRequest,
   type PipelineDeps,
 } from '@/lib/pipeline/processPullRequest';
+import { buildDeps } from '@/app/api/webhook/_lib/buildDeps';
+import { checkBodySize } from '@/app/api/_lib/bodySizeGuard';
 import type { PipelineInput, PullRequestWebhookPayload } from '@/types/github';
-
-/**
- * Module-private helper — constructs the production PipelineDeps. Called INSIDE the
- * after() callback path only, never at module top level (imports must stay side-effect
- * free for tests and builds without env vars).
- */
-function buildDeps(): PipelineDeps {
-  const env = loadEnv();
-  return { env, db: createDbClient(env), getInstallationClient };
-}
 
 /**
  * Module-private — undefined when no queue is configured; never throws (Track N).
@@ -73,12 +63,17 @@ export function makePostHandler(overrides?: {
   pipeline?: typeof processPullRequest;
   queueEnv?: QueueEnv;
   publish?: typeof publishPipelineJob;
+  baseUrl?: string;
 }): (req: Request) => Promise<Response> {
   const defer = overrides?.defer ?? ((task: () => Promise<void>) => after(task));
   const pipeline = overrides?.pipeline ?? processPullRequest;
   const publish = overrides?.publish ?? publishPipelineJob;
 
   return async function POST(req: Request): Promise<Response> {
+    // 0. Body-size guard BEFORE reading the body (Content-Length only; see bodySizeGuard).
+    const oversize = checkBodySize(req);
+    if (oversize) return oversize;
+
     // 1. RAW body FIRST — before any parsing (Law 4).
     const raw = await req.text();
 
@@ -147,7 +142,11 @@ export function makePostHandler(overrides?: {
     const queueEnv = overrides?.queueEnv ?? tryLoadQueueEnv();
     if (queueEnv) {
       try {
-        await publish(queueEnv, new URL('/api/webhook/process', req.url).toString(), input);
+        // Pin the publish target to APP_BASE_URL when set (never the spoofable request
+        // Host); fall back to req.url otherwise. The override seam keeps tests off
+        // process.env, mirroring the queueEnv override.
+        const base = overrides?.baseUrl ?? readAppBaseUrl() ?? req.url;
+        await publish(queueEnv, new URL('/api/webhook/process', base).toString(), input);
       } catch (error) {
         console.error(
           '[guardrail] queue publish failed:',

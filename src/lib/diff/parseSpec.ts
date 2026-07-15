@@ -8,7 +8,7 @@ export class SpecParseError extends Error {
   constructor(
     message: string,
     readonly filePath: string,
-    readonly cause?: unknown,
+    override readonly cause?: unknown,
   ) {
     super(message);
     this.name = 'SpecParseError';
