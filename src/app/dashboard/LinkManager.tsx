@@ -109,6 +109,14 @@ export function LinkManager({ login, appSlug }: LinkManagerProps) {
   const [confirmingKey, setConfirmingKey] = useState<string | null>(null);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const confirmRef = useRef<HTMLButtonElement | null>(null);
+  const confirmPanelRef = useRef<HTMLDivElement | null>(null);
+  // The Delete (trash) button element for each row, so focus can return to the
+  // trigger when its confirmation is dismissed (Escape / Cancel / outside click).
+  const triggerRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
+  // Row key whose Delete trigger should regain focus once it re-renders after a
+  // cancelled confirmation (the trash button unmounts while the confirm is open).
+  // A ref rather than state: it is read from an effect without triggering a render.
+  const pendingRestoreRef = useRef<string | null>(null);
 
   useEffect(() => {
     const pending = timers.current;
@@ -155,19 +163,44 @@ export function LinkManager({ login, appSlug }: LinkManagerProps) {
     void load();
   }, [load]);
 
-  // Move focus onto the Confirm button when a row's inline confirmation opens.
+  // Manage focus around the inline confirmation. When one opens, focus moves onto
+  // the Confirm button. When it closes after a cancel (Escape / Cancel / outside
+  // click), focus returns to the row's re-mounted Delete trigger so keyboard users
+  // are not stranded on a removed control.
   useEffect(() => {
-    if (confirmingKey !== null) confirmRef.current?.focus();
+    if (confirmingKey !== null) {
+      confirmRef.current?.focus();
+      return;
+    }
+    const restoreKey = pendingRestoreRef.current;
+    if (restoreKey !== null) {
+      pendingRestoreRef.current = null;
+      triggerRefs.current.get(restoreKey)?.focus();
+    }
   }, [confirmingKey]);
 
-  // Escape cancels an open confirmation and returns focus to the row's Delete trigger.
+  // Escape or an outside pointer-press cancels an open confirmation and returns
+  // focus to the row's Delete trigger.
   useEffect(() => {
     if (confirmingKey === null) return;
     function onKeyDown(e: KeyboardEvent): void {
       if (e.key === 'Escape') cancelConfirm();
     }
+    function onPointerDown(e: PointerEvent): void {
+      const panel = confirmPanelRef.current;
+      if (panel && e.target instanceof Node && !panel.contains(e.target)) {
+        cancelConfirm();
+      }
+    }
     document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('pointerdown', onPointerDown);
+    };
+    // `cancelConfirm` only reads `confirmingKey`, which already re-runs this effect;
+    // adding it as a dep would churn listeners on every render for no behavioural gain.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [confirmingKey]);
 
   function repoFullName(id: number): string {
@@ -228,6 +261,7 @@ export function LinkManager({ login, appSlug }: LinkManagerProps) {
   }
 
   function cancelConfirm(): void {
+    if (confirmingKey !== null) pendingRestoreRef.current = confirmingKey;
     setConfirmingKey(null);
   }
 
@@ -476,6 +510,10 @@ export function LinkManager({ login, appSlug }: LinkManagerProps) {
                               </div>
                               {!isConfirming && (
                                 <button
+                                  ref={(el) => {
+                                    if (el) triggerRefs.current.set(key, el);
+                                    else triggerRefs.current.delete(key);
+                                  }}
                                   type="button"
                                   className="icon-button"
                                   aria-label={`Delete link to ${frontendName}`}
@@ -488,6 +526,7 @@ export function LinkManager({ login, appSlug }: LinkManagerProps) {
                             </div>
                             {isConfirming && (
                               <div
+                                ref={confirmPanelRef}
                                 className="confirm"
                                 role="alertdialog"
                                 aria-label="Delete link?"
